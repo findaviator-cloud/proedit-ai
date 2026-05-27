@@ -9,7 +9,6 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Load u2net session once at startup
 print("Loading u2net model...")
 session = new_session("u2net")
 print("✅ Model loaded!")
@@ -22,55 +21,39 @@ def health():
 def remove_bg():
     try:
         data = request.get_json()
-
         if not data or 'image' not in data:
             return jsonify({"error": "No image provided"}), 400
-
-        # Decode base64 image
         image_data = data['image']
         if ',' in image_data:
             image_data = image_data.split(',')[1]
-
         image_bytes = base64.b64decode(image_data)
         input_image = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-
-        # Remove background
         output_image = remove(input_image, session=session)
-
-        # Encode output to base64
         output_buffer = io.BytesIO()
         output_image.save(output_buffer, format="PNG")
         output_buffer.seek(0)
         output_b64 = base64.b64encode(output_buffer.read()).decode('utf-8')
-
-        return jsonify({
-            "success": True,
-            "image": f"data:image/png;base64,{output_b64}"
-        })
-
+        return jsonify({"success": True, "image": f"data:image/png;base64,{output_b64}"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/remove-bg-file', methods=['POST'])
-def remove_bg_file():
+@app.route('/remove-bg-bulk', methods=['POST'])
+def remove_bg_bulk():
     try:
-        if 'file' not in request.files:
-            return jsonify({"error": "No file provided"}), 400
-
-        file = request.files['file']
-        input_image = Image.open(file.stream).convert("RGBA")
-
-        # Remove background
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({"error": "No image provided"}), 400
+        image_data = data['image']
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+        image_bytes = base64.b64decode(image_data)
+        input_image = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
         output_image = remove(input_image, session=session)
-
-        # Return as PNG file
         output_buffer = io.BytesIO()
         output_image.save(output_buffer, format="PNG")
         output_buffer.seek(0)
-
-        return send_file(output_buffer, mimetype='image/png', 
-                        download_name='removed_bg.png')
-
+        output_b64 = base64.b64encode(output_buffer.read()).decode('utf-8')
+        return jsonify({"success": True, "image": f"data:image/png;base64,{output_b64}"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
