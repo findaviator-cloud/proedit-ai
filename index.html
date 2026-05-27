@@ -1079,7 +1079,7 @@ async function removeBgLocal(srcCanvas){
   rmbgMsg.textContent = 'Calling local rembg AI…';
   rmbgMsg.nextElementSibling.textContent = 'U2Net model — remove.bg quality';
   const dataURL = srcCanvas.toDataURL('image/png');
-  const res = await fetch('http://localhost:8080/removebg', {
+  const res = await fetch('https://ppchaubey-proedit-ai.hf.space/remove-bg', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({image: dataURL})
@@ -1096,7 +1096,7 @@ async function removeBgLocal(srcCanvas){
 /* ── Check if local rembg server is running ── */
 async function checkLocalServer(){
   try{
-    const r = await fetch('http://localhost:8080/health',{signal:AbortSignal.timeout(1500)});
+    const r = await fetch('https://ppchaubey-proedit-ai.hf.space/health',{signal:AbortSignal.timeout(1500)});
     const d = await r.json();
     return d.rembg === true;
   }catch(e){ return false; }
@@ -1976,7 +1976,7 @@ document.getElementById('bulk-rmbg').addEventListener('click',async()=>{
         name:img.name,
         image:img.origCanvas.toDataURL('image/png')
       }));
-      const res=await fetch('http://localhost:8080/removebg-bulk',{
+      const res=await fetch('https://ppchaubey-proedit-ai.hf.space/remove-bg-bulk',{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({images, model:'isnet', format:'png'})
       });
@@ -2023,7 +2023,7 @@ async function bulkRmbgOneByOne(targets, useServer){
     img.status='processing';renderBulkGrid();
     try{
       if(useServer){
-        const res=await fetch('http://localhost:8080/removebg',{
+        const res=await fetch('https://ppchaubey-proedit-ai.hf.space/remove-bg',{
           method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({image:img.origCanvas.toDataURL('image/png'),model:'isnet'})
         });
@@ -2127,7 +2127,7 @@ async function updateServerBadge(){
   const badge = document.getElementById('server-status-badge');
   if(!badge) return;
   try{
-    const r = await fetch('http://localhost:8080/health',{signal:AbortSignal.timeout(1500)});
+    const r = await fetch('https://ppchaubey-proedit-ai.hf.space/health',{signal:AbortSignal.timeout(1500)});
     const d = await r.json();
     if(d.rembg){
       badge.style.background='rgba(34,197,94,.12)';
