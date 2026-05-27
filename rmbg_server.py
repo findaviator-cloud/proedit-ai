@@ -11,7 +11,7 @@ CORS(app)
 
 # Load u2net session once at startup
 print("Loading u2net model...")
-session = new_session("isnet-general-use")
+session = new_session("u2net")
 print("✅ Model loaded!")
 
 @app.route('/health', methods=['GET'])
