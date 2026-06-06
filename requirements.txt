@@ -9,3 +9,5 @@ gfpgan==1.3.8
 facexlib==0.3.0
 numpy>=1.23.0
 opencv-python-headless==4.8.1.78
+torch==2.4.0
+torchvision==0.19.0
