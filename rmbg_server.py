@@ -158,3 +158,19 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     print(f"🚀 RMBG Server starting on port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
+
+# ── Startup model warmup ──────────────────────────────────────────────────────
+import threading
+
+def _warmup():
+    """Process a tiny dummy image on startup to warm up the model."""
+    try:
+        from PIL import Image
+        import io
+        dummy = Image.new("RGBA", (64, 64), (255, 0, 0, 255))
+        remove(dummy, session=session)
+        print("✅ Model warmed up!")
+    except Exception as e:
+        print(f"⚠️ Warmup failed: {e}")
+
+threading.Thread(target=_warmup, daemon=True).start()
