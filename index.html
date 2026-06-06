@@ -1237,7 +1237,7 @@ function bitmapToCanvas(bmp){
 
 /* ── Upscale ── */
 async function upscaleImage(){
-  if(!imageLoaded) return;
+  if(!originalImage) return;
   const tok = ++imageToken;
   showToast('⏳ Upscaling 4x...');
   setStatus('working','Upscaling...');
@@ -1269,7 +1269,7 @@ async function upscaleImage(){
 
 /* ── Face Enhance ── */
 async function faceEnhance(){
-  if(!imageLoaded) return;
+  if(!originalImage) return;
   const tok = ++imageToken;
   showToast('⏳ Enhancing faces...');
   setStatus('working','Face enhancing...');
