@@ -929,7 +929,7 @@ function updateUI(){
   const s=appState;
   // enable controls
   ['rb-undo','rb-redo','rb-rotate-l','rb-rotate-r','rb-flip-h','rb-flip-v',
-   'rb-rmbg','rb-png','rb-jpg','rb-webp','rb-gray','rb-inv','rb-sepia','rb-nofilter',]
+   'rb-rmbg','rb-upscale','rb-face','rb-png','rb-jpg','rb-webp','rb-gray','rb-inv','rb-sepia','rb-nofilter',]
    .forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!has;});
   document.getElementById('rb-undo').disabled=!has||history.length===0;
   document.getElementById('rb-redo').disabled=!has||redoStack.length===0;
