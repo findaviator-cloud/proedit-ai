@@ -1709,6 +1709,7 @@ document.getElementById('m-zoom100').addEventListener('click',()=>setZoom(1));
 document.getElementById('m-zoom200').addEventListener('click',()=>setZoom(2));
 document.getElementById('m-rmbg').addEventListener('click',()=>removeBackground(++imageToken));
 document.getElementById('m-resize-modal').addEventListener('click',openResizeModal);
+document.getElementById('m-canvas-size').addEventListener('click',openCanvasSizeModal);
 
 /* ── PANEL TABS ── */
 document.querySelectorAll('.panel-tab').forEach(tab=>{
@@ -1752,6 +1753,48 @@ window.setResizePreset=function(pct){
   document.getElementById('resize-w').value=Math.round(bW*pct/100);
   document.getElementById('resize-h').value=Math.round(bH*pct/100);
 };
+/* ── Canvas Size Modal ── */
+function openCanvasSizeModal(){
+  if(!originalImage) return;
+  const w = appState.resizeW ?? originalImage.width;
+  const h = appState.resizeH ?? originalImage.height;
+  const newW = prompt(`Canvas Width (current: ${w}px):`, w);
+  if(!newW) return;
+  const newH = prompt(`Canvas Height (current: ${h}px):`, h);
+  if(!newH) return;
+  const cw = parseInt(newW), ch = parseInt(newH);
+  if(cw > 0 && ch > 0){
+    mutate(()=>{
+      const tmp = document.createElement('canvas');
+      tmp.width = cw; tmp.height = ch;
+      const tc = tmp.getContext('2d');
+      tc.fillStyle = '#ffffff';
+      tc.fillRect(0, 0, cw, ch);
+      tc.drawImage(editorCanvas, 0, 0);
+      editorCanvas.width = cw; editorCanvas.height = ch;
+      ctx.drawImage(tmp, 0, 0);
+    }, `Canvas Size ${cw}×${ch}`);
+    toast(`Canvas resized to ${cw}×${ch}`);
+  }
+}
+
+/* ── Auto Enhance ── */
+function autoEnhance(){
+  if(!originalImage){ toast('Open an image first'); return; }
+  mutate(()=>{
+    appState.resizeW = appState.resizeW ?? originalImage.width;
+    appState.resizeH = appState.resizeH ?? originalImage.height;
+    // Auto set brightness/contrast/saturation to enhanced values
+    const bright = document.getElementById('r-bright');
+    const contrast = document.getElementById('r-contrast');
+    const sat = document.getElementById('r-sat');
+    if(bright){ bright.value = 110; bright.dispatchEvent(new Event('input')); }
+    if(contrast){ contrast.value = 115; contrast.dispatchEvent(new Event('input')); }
+    if(sat){ sat.value = 115; sat.dispatchEvent(new Event('input')); }
+  }, 'Auto Enhance');
+  toast('✨ Auto Enhanced!');
+}
+
 function openResizeModal(){
   if(!originalImage)return;
   const bW=appState.cropW??originalImage.width;
