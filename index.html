@@ -63,8 +63,8 @@ body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:13p
 .ribbon-group-label{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);font-size:9.5px;color:var(--txt3);white-space:nowrap;letter-spacing:.5px;text-transform:uppercase}
 .rb{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:3px;padding:5px 7px;border-radius:var(--r8);cursor:pointer;
-  color:var(--txt2);transition:var(--transition);min-width:44px;height:52px;
+  gap:2px;padding:4px 5px;border-radius:var(--r8);cursor:pointer;
+  color:var(--txt2);transition:var(--transition);min-width:38px;height:48px;
   border:1px solid transparent;background:transparent;font-family:var(--sans);
   white-space:nowrap;
 }
@@ -575,13 +575,13 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3)}
       <svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
       <span>Remove BG</span>
     </button>
-    <button class="rb" id="rb-upscale" disabled style="color:var(--gold)">
+    <button class="rb small" id="rb-upscale" disabled style="color:var(--gold)">
       <svg class="icon" viewBox="0 0 24 24"><path d="M21 21l-6-6m0 0l-3-3m3 3l-3 3m3-3V9m-6 12H5a2 2 0 01-2-2V5a2 2 0 012-2h7"/></svg>
-      <span>4x Upscale</span>
+      <span>Upscale</span>
     </button>
-    <button class="rb" id="rb-face" disabled style="color:var(--cyan)">
+    <button class="rb small" id="rb-face" disabled style="color:var(--cyan)">
       <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M12 14c-5 0-8 2.5-8 4v1h16v-1c0-1.5-3-4-8-4z"/></svg>
-      <span>Face Enhance</span>
+      <span>Face+</span>
     </button>
     <div class="ribbon-group-label">AI Tools</div>
   </div>
