@@ -2250,7 +2250,7 @@ async function updateServerBadge(){
       badge.style.background='rgba(34,197,94,.12)';
       badge.style.borderColor='rgba(34,197,94,.3)';
       badge.style.color='var(--green)';
-      badge.innerHTML='✅ rembg server running — U2Net AI ready!';
+      badge.innerHTML='✅ BiRefNet AI ready — background removal active!';
     } else {
       badge.style.background='rgba(245,158,11,.1)';
       badge.style.borderColor='rgba(245,158,11,.3)';
@@ -2261,7 +2261,7 @@ async function updateServerBadge(){
     badge.style.background='rgba(239,68,68,.08)';
     badge.style.borderColor='rgba(239,68,68,.2)';
     badge.style.color='var(--red)';
-    badge.innerHTML='❌ rembg server offline — run <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px">python3 rmbg_server.py</code>';
+    badge.innerHTML='⏳ Connecting to AI server...';
   }
 }
 updateServerBadge();
