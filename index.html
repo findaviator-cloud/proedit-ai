@@ -1239,8 +1239,13 @@ function bitmapToCanvas(bmp){
 async function upscaleImage(){
   if(!originalImage) return;
   const tok = ++imageToken;
-  showToast('⏳ Upscaling 4x...');
-  setStatus('working','Upscaling...');
+  const btn = document.getElementById('rb-upscale');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="28" stroke-dashoffset="0"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg><span>Upscaling...</span>';
+  btn.style.color = 'var(--gold)';
+  btn.disabled = true;
+  showToast('⏳ Upscaling 4x... please wait');
+  setStatus('working','Upscaling 4x...');
   try {
     const b64 = editorCanvas.toDataURL('image/png');
     const res = await fetch('https://ppchaubey-proedit-ai.hf.space/upscale', {
@@ -1258,12 +1263,16 @@ async function upscaleImage(){
         showToast(`✅ Upscaled to ${img.width}x${img.height}`);
         setStatus('ready','Ready');
         mutate(()=>{},'Upscale 4x');
+        btn.innerHTML = origHTML;
+        btn.disabled = false;
       };
       img.src = data.image;
     }
   } catch(e) {
     showToast('❌ Upscale failed: ' + e.message);
     setStatus('ready','Ready');
+    btn.innerHTML = origHTML;
+    btn.disabled = false;
   }
 }
 
@@ -1271,8 +1280,13 @@ async function upscaleImage(){
 async function faceEnhance(){
   if(!originalImage) return;
   const tok = ++imageToken;
-  showToast('⏳ Enhancing faces...');
-  setStatus('working','Face enhancing...');
+  const btn = document.getElementById('rb-face');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="28"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg><span>Enhancing...</span>';
+  btn.style.color = 'var(--cyan)';
+  btn.disabled = true;
+  showToast('⏳ Enhancing faces... please wait');
+  setStatus('working','Face Enhancing...');
   try {
     const b64 = editorCanvas.toDataURL('image/png');
     const res = await fetch('https://ppchaubey-proedit-ai.hf.space/face-enhance', {
@@ -1290,12 +1304,16 @@ async function faceEnhance(){
         showToast('✅ Face enhanced!');
         setStatus('ready','Ready');
         mutate(()=>{},'Face Enhance');
+        btn.innerHTML = origHTML;
+        btn.disabled = false;
       };
       img.src = data.image;
     }
   } catch(e) {
     showToast('❌ Face enhance failed: ' + e.message);
     setStatus('ready','Ready');
+    btn.innerHTML = origHTML;
+    btn.disabled = false;
   }
 }
 
