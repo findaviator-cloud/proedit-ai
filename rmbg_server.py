@@ -20,8 +20,8 @@ print("✅ Model loaded!")
 
 # ── ESRGAN lazy load ──────────────────────────────────────────────────────────
 _upsampler = None
-ESRGAN_URL  = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth"
-ESRGAN_PATH = os.path.join(MODEL_DIR, "realesr-general-x4v3.pth")
+ESRGAN_URL  = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
+ESRGAN_PATH = os.path.join(MODEL_DIR, "RealESRGAN_x4plus.pth")
 
 def get_upsampler():
     global _upsampler
@@ -29,9 +29,9 @@ def get_upsampler():
     from basicsr.archs.rrdbnet_arch import RRDBNet
     from realesrgan import RealESRGANer
     if not os.path.exists(ESRGAN_PATH):
-        print("Downloading ESRGAN model...")
+        print("Downloading RealESRGAN x4plus model...")
         urllib.request.urlretrieve(ESRGAN_URL, ESRGAN_PATH)
-    model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=6, num_grow_ch=32, scale=4)
+    model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
     _upsampler = RealESRGANer(scale=4, model_path=ESRGAN_PATH, model=model,
                                tile=256, tile_pad=10, pre_pad=0, half=False)
     print("✅ ESRGAN ready!")
