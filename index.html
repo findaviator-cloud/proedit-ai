@@ -2077,6 +2077,107 @@ document.getElementById('bulk-sepia').addEventListener('click',()=>setBulkFilter
 document.getElementById('bulk-invert').addEventListener('click',()=>setBulkFilter('invert'));
 
 /* ── bulk BG removal ── */
+/* ── Bulk Resize ── */
+document.getElementById('bulk-resize-btn').addEventListener('click',()=>{
+  const targets = getTargets();
+  if(!targets.length){ toast('No images'); return; }
+  const w = prompt('Width (px):', '800');
+  if(!w) return;
+  const h = prompt('Height (px):', '600');
+  if(!h) return;
+  const tw = parseInt(w), th = parseInt(h);
+  if(!tw||!th){ toast('Invalid size'); return; }
+  targets.forEach(img=>{
+    const out = document.createElement('canvas');
+    out.width = tw; out.height = th;
+    out.getContext('2d').drawImage(img.canvas, 0, 0, tw, th);
+    img.canvas = out;
+    img.origCanvas = out;
+    img.status = 'done';
+  });
+  renderBulkGrid();
+  toast(`✅ Resized ${targets.length} images to ${tw}×${th}`);
+});
+
+/* ── Bulk Auto Enhance ── */
+document.getElementById('bulk-auto-enhance').addEventListener('click',()=>{
+  const targets = getTargets();
+  if(!targets.length){ toast('No images'); return; }
+  targets.forEach(img=>{
+    const out = document.createElement('canvas');
+    out.width = img.canvas.width;
+    out.height = img.canvas.height;
+    const oc = out.getContext('2d');
+    oc.filter = 'brightness(110%) contrast(115%) saturate(115%)';
+    oc.drawImage(img.canvas, 0, 0);
+    oc.filter = 'none';
+    img.canvas = out;
+    img.status = 'done';
+  });
+  renderBulkGrid();
+  toast(`✅ Auto Enhanced ${targets.length} images`);
+});
+
+/* ── Bulk Upscale ── */
+document.getElementById('bulk-upscale').addEventListener('click',async()=>{
+  const targets = getTargets();
+  if(!targets.length){ toast('No images'); return; }
+  bulkStatusTx.textContent = `Upscaling ${targets.length} images...`;
+  let done = 0;
+  for(const img of targets){
+    try{
+      img.status = 'processing'; renderBulkGrid();
+      const b64 = img.canvas.toDataURL('image/png');
+      const res = await fetch('https://ppchaubey-proedit-ai.hf.space/upscale',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({image: b64, scale: 4})
+      });
+      const data = await res.json();
+      if(data.success){
+        const bmp = await createImageBitmap(await (await fetch(data.image)).blob());
+        const out = document.createElement('canvas');
+        out.width = bmp.width; out.height = bmp.height;
+        out.getContext('2d').drawImage(bmp, 0, 0);
+        img.canvas = out; img.origCanvas = out;
+        img.status = 'done'; done++;
+      } else { img.status = 'error'; }
+    } catch(e){ img.status = 'error'; }
+    renderBulkGrid();
+    bulkStatusTx.textContent = `Upscaled ${done}/${targets.length}`;
+  }
+  toast(`✅ Upscaled ${done}/${targets.length} images`);
+});
+
+/* ── Bulk Face Enhance ── */
+document.getElementById('bulk-face').addEventListener('click',async()=>{
+  const targets = getTargets();
+  if(!targets.length){ toast('No images'); return; }
+  bulkStatusTx.textContent = `Enhancing ${targets.length} faces...`;
+  let done = 0;
+  for(const img of targets){
+    try{
+      img.status = 'processing'; renderBulkGrid();
+      const b64 = img.canvas.toDataURL('image/png');
+      const res = await fetch('https://ppchaubey-proedit-ai.hf.space/face-enhance',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({image: b64})
+      });
+      const data = await res.json();
+      if(data.success){
+        const bmp = await createImageBitmap(await (await fetch(data.image)).blob());
+        const out = document.createElement('canvas');
+        out.width = bmp.width; out.height = bmp.height;
+        out.getContext('2d').drawImage(bmp, 0, 0);
+        img.canvas = out; img.origCanvas = out;
+        img.status = 'done'; done++;
+      } else { img.status = 'error'; }
+    } catch(e){ img.status = 'error'; }
+    renderBulkGrid();
+    bulkStatusTx.textContent = `Enhanced ${done}/${targets.length}`;
+  }
+  toast(`✅ Face Enhanced ${done}/${targets.length} images`);
+});
+
 document.getElementById('bulk-rmbg').addEventListener('click',async()=>{
   const targets=getTargets();
   if(!targets.length){toast('No images selected');return;}
@@ -2327,6 +2428,14 @@ toast('ProEdit AI ready — open or drop an image!',3000);
     <button class="bulk-btn" id="bulk-grayscale">◑ Grayscale</button>
     <button class="bulk-btn" id="bulk-sepia">🟤 Sepia</button>
     <button class="bulk-btn" id="bulk-invert">◐ Invert</button>
+    <div class="bulk-sep"></div>
+    <!-- Resize -->
+    <button class="bulk-btn" id="bulk-resize-btn">⊡ Resize</button>
+    <div class="bulk-sep"></div>
+    <!-- AI -->
+    <button class="bulk-btn" id="bulk-auto-enhance" style="color:var(--gold)">✨ Auto Enhance</button>
+    <button class="bulk-btn" id="bulk-upscale" style="color:var(--gold)">⬆ Upscale 4x</button>
+    <button class="bulk-btn" id="bulk-face" style="color:var(--cyan)">👤 Face Enhance</button>
     <div class="bulk-sep"></div>
     <!-- Export -->
     <button class="bulk-btn success" id="bulk-export-png">↓ All PNG</button>
