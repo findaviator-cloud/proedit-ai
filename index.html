@@ -1661,17 +1661,22 @@ let eraserSize = 30;
 
 function initMaskCanvas(){
   const maskCanvas = document.getElementById('mask-canvas');
-  const stage = document.getElementById('canvas-stage');
-  maskCanvas.width = editorCanvas.width;
+  // editorCanvas ke exact size match karo
+  maskCanvas.width  = editorCanvas.width;
   maskCanvas.height = editorCanvas.height;
-  maskCanvas.style.width = editorCanvas.style.width || editorCanvas.width + 'px';
-  maskCanvas.style.height = editorCanvas.style.height || editorCanvas.height + 'px';
-  maskCtx = maskCanvas.getContext('2d');
-  maskCtx.fillStyle = 'black';
-  maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+  // CSS size bhi same rakho
+  maskCanvas.style.width  = editorCanvas.offsetWidth  + 'px';
+  maskCanvas.style.height = editorCanvas.offsetHeight + 'px';
+  maskCanvas.style.position = 'absolute';
+  maskCanvas.style.top  = '0';
+  maskCanvas.style.left = '0';
+  maskCanvas.style.zIndex = '20';
   maskCanvas.style.display = 'block';
-  maskCanvas.style.opacity = '0.5';
+  maskCanvas.style.opacity = '0.55';
   maskCanvas.style.cursor = 'crosshair';
+  maskCtx = maskCanvas.getContext('2d');
+  maskCtx.fillStyle = 'rgba(0,0,0,0)';
+  maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
 
   maskCanvas.onmousedown = (e) => { isDrawing = true; drawMask(e); };
   maskCanvas.onmousemove = (e) => { if(isDrawing) drawMask(e); };
