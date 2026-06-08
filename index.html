@@ -1661,12 +1661,13 @@ let eraserSize = 30;
 
 function initMaskCanvas(){
   const maskCanvas = document.getElementById('mask-canvas');
+  const edCanvas = document.getElementById('editor-canvas');
   // editorCanvas ke exact size match karo
-  maskCanvas.width  = editorCanvas.width;
-  maskCanvas.height = editorCanvas.height;
+  maskCanvas.width  = edCanvas.width;
+  maskCanvas.height = edCanvas.height;
   // CSS size bhi same rakho
-  maskCanvas.style.width  = editorCanvas.offsetWidth  + 'px';
-  maskCanvas.style.height = editorCanvas.offsetHeight + 'px';
+  maskCanvas.style.width  = edCanvas.offsetWidth  + 'px';
+  maskCanvas.style.height = edCanvas.offsetHeight + 'px';
   maskCanvas.style.position = 'absolute';
   maskCanvas.style.top  = '0';
   maskCanvas.style.left = '0';
