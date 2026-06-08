@@ -1750,7 +1750,8 @@ async function applyMagicEraser(){
   toast('⏳ Magic Eraser running... please wait 30sec');
   setStatus('working', 'Magic Eraser...');
   try {
-    const imgB64 = editorCanvas.toDataURL('image/png');
+    const edCanvas = document.getElementById('editor-canvas');
+    const imgB64 = edCanvas.toDataURL('image/png');
     // White mask banao API ke liye — red pixels ko white mein convert karo
     const tempMask = document.createElement('canvas');
     tempMask.width = maskCanvas.width;
