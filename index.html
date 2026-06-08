@@ -1745,7 +1745,9 @@ function cancelMagicEraser(){
 
 async function applyMagicEraser(){
   const maskCanvas = document.getElementById('mask-canvas');
-  showToast('⏳ Magic Eraser running...');
+  const applyBtn = document.querySelector('#magic-apply-bar button');
+  if(applyBtn){ applyBtn.innerHTML='⏳ Processing...'; applyBtn.disabled=true; }
+  toast('⏳ Magic Eraser running... please wait 30sec');
   setStatus('working', 'Magic Eraser...');
   try {
     const imgB64 = editorCanvas.toDataURL('image/png');
