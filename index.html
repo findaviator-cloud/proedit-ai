@@ -1675,7 +1675,6 @@ function initMaskCanvas(){
   maskCanvas.style.opacity = '0.55';
   maskCanvas.style.cursor = 'crosshair';
   maskCtx = maskCanvas.getContext('2d');
-  maskCtx.fillStyle = 'rgba(0,0,0,0)';
   maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
 
   maskCanvas.onmousedown = (e) => { isDrawing = true; drawMask(e); };
@@ -1697,7 +1696,9 @@ function drawMask(e){
   const scaleY = maskCanvas.height / rect.height;
   const x = (e.clientX - rect.left) * scaleX;
   const y = (e.clientY - rect.top) * scaleY;
-  maskCtx.fillStyle = 'white';
+  // Red visible brush + white mask for API
+  maskCtx.globalCompositeOperation = 'source-over';
+  maskCtx.fillStyle = 'rgba(255,50,50,0.7)';
   maskCtx.beginPath();
   maskCtx.arc(x, y, eraserSize, 0, Math.PI * 2);
   maskCtx.fill();
@@ -1746,7 +1747,23 @@ async function applyMagicEraser(){
   setStatus('working', 'Magic Eraser...');
   try {
     const imgB64 = editorCanvas.toDataURL('image/png');
-    const maskB64 = maskCanvas.toDataURL('image/png');
+    // White mask banao API ke liye — red pixels ko white mein convert karo
+    const tempMask = document.createElement('canvas');
+    tempMask.width = maskCanvas.width;
+    tempMask.height = maskCanvas.height;
+    const tCtx = tempMask.getContext('2d');
+    tCtx.fillStyle = 'black';
+    tCtx.fillRect(0, 0, tempMask.width, tempMask.height);
+    const imgData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+    const outData = tCtx.createImageData(tempMask.width, tempMask.height);
+    for(let i = 0; i < imgData.data.length; i += 4){
+      const r = imgData.data[i], a = imgData.data[i+3];
+      const isRed = r > 150 && a > 50;
+      outData.data[i] = outData.data[i+1] = outData.data[i+2] = isRed ? 255 : 0;
+      outData.data[i+3] = 255;
+    }
+    tCtx.putImageData(outData, 0, 0);
+    const maskB64 = tempMask.toDataURL('image/png');
     const res = await fetch('https://ppchaubey-proedit-ai.hf.space/inpaint', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
