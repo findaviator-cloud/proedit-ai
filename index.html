@@ -654,7 +654,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3)}
     <div id="canvas-stage" style="display:none;position:absolute">
       <canvas id="editor-canvas"></canvas>
       <canvas id="crop-canvas"></canvas>
-      <canvas id="mask-canvas" style="position:absolute;top:0;left:0;display:none;cursor:crosshair;opacity:0.5"></canvas>
+      <canvas id="mask-canvas" style="position:absolute;top:0;left:0;display:none;cursor:crosshair;opacity:0.5;pointer-events:all;z-index:20"></canvas>
     </div>
     <div id="rmbg-overlay">
       <div class="rmbg-ring"></div>
@@ -1672,6 +1672,7 @@ function initMaskCanvas(){
   maskCanvas.style.top  = '0';
   maskCanvas.style.left = '0';
   maskCanvas.style.zIndex = '20';
+  maskCanvas.style.pointerEvents = 'all';
   maskCanvas.style.display = 'block';
   maskCanvas.style.opacity = '0.55';
   maskCanvas.style.cursor = 'crosshair';
