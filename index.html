@@ -1797,6 +1797,9 @@ async function applyMagicEraser(){
 }
 
 document.getElementById('rb-magic-eraser').addEventListener('click', toggleMagicEraser);
+window.applyMagicEraser = applyMagicEraser;
+window.cancelMagicEraser = cancelMagicEraser;
+window.toggleMagicEraser = toggleMagicEraser;
 
 // Magic apply bar button — event delegation
 document.addEventListener('click', function(e){
