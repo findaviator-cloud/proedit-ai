@@ -1711,7 +1711,7 @@ function toggleMagicEraser(){
   if(magicEraserActive){
     btn.style.background = 'rgba(247,92,142,0.2)';
     btn.style.borderColor = 'var(--accent3)';
-    showToast('🖌️ Paint over area to erase — then click Apply');
+    toast('🖌️ Paint over area to erase — then click Apply');
     initMaskCanvas();
     // Apply button show karo
     if(!document.getElementById('magic-apply-bar')){
@@ -1776,17 +1776,17 @@ async function applyMagicEraser(){
         ctx.clearRect(0, 0, editorCanvas.width, editorCanvas.height);
         ctx.drawImage(img, 0, 0);
         mutate(()=>{}, 'Magic Eraser');
-        showToast('✅ Magic Eraser done!');
+        toast('✅ Magic Eraser done!');
         setStatus('ready', 'Ready');
         cancelMagicEraser();
       };
       img.src = data.image;
     } else {
-      showToast('❌ Error: ' + (data.error||'Unknown'));
+      toast('❌ Error: ' + (data.error||'Unknown'));
       setStatus('ready','Ready');
     }
   } catch(e) {
-    showToast('❌ Failed: ' + e.message);
+    toast('❌ Failed: ' + e.message);
     setStatus('ready','Ready');
   }
 }
