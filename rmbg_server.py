@@ -178,6 +178,41 @@ def face_enhance():
         return jsonify({"success":True,"image":encode_image(result)})
     except Exception as e: return jsonify({"error":str(e)}), 500
 
+# ── Magic Eraser (OpenCV Inpainting) ─────────────────────────────────────────
+@app.route("/inpaint", methods=["POST"])
+def inpaint():
+    try:
+        import cv2
+        data = request.get_json(silent=True)
+        if not data or "image" not in data or "mask" not in data:
+            return jsonify({"error": "image and mask required"}), 400
+
+        # Decode image
+        img = decode_image(data["image"]).convert("RGB")
+        img_np = np.array(img)
+        img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
+        # Decode mask
+        mask_uri = data["mask"]
+        if "," in mask_uri: mask_uri = mask_uri.split(",", 1)[1]
+        mask_raw = base64.b64decode(mask_uri)
+        mask_img = Image.open(io.BytesIO(mask_raw)).convert("L")
+        mask_img = mask_img.resize((img.width, img.height), Image.LANCZOS)
+        mask_np = np.array(mask_img)
+
+        # Threshold mask
+        _, mask_bin = cv2.threshold(mask_np, 127, 255, cv2.THRESH_BINARY)
+
+        # Inpaint — TELEA algorithm (best quality)
+        radius = int(data.get("radius", 3))
+        result_bgr = cv2.inpaint(img_bgr, mask_bin, radius, cv2.INPAINT_TELEA)
+        result_rgb = cv2.cvtColor(result_bgr, cv2.COLOR_BGR2RGB)
+        result = Image.fromarray(result_rgb)
+
+        return jsonify({"success": True, "image": encode_image(result)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ── warmup ────────────────────────────────────────────────────────────────────
 def _warmup():
     try:
