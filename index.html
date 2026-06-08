@@ -1778,8 +1778,10 @@ async function applyMagicEraser(){
     if(data.success){
       const img = new Image();
       img.onload = () => {
-        ctx.clearRect(0, 0, editorCanvas.width, editorCanvas.height);
-        ctx.drawImage(img, 0, 0);
+        const edCanvas = document.getElementById('editor-canvas');
+        const edCtx = edCanvas.getContext('2d');
+        edCtx.clearRect(0, 0, edCanvas.width, edCanvas.height);
+        edCtx.drawImage(img, 0, 0);
         mutate(()=>{}, 'Magic Eraser');
         toast('✅ Magic Eraser done!');
         setStatus('ready', 'Ready');
