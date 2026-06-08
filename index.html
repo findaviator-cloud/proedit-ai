@@ -1780,9 +1780,18 @@ async function applyMagicEraser(){
       img.onload = () => {
         const edCanvas = document.getElementById('editor-canvas');
         const edCtx = edCanvas.getContext('2d');
-        edCtx.clearRect(0, 0, edCanvas.width, edCanvas.height);
-        edCtx.drawImage(img, 0, 0);
-        mutate(()=>{}, 'Magic Eraser');
+        // originalImage update karo
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+        tempCanvas.getContext('2d').drawImage(img, 0, 0);
+        originalImage = tempCanvas;
+        // State reset
+        appState.cropX = 0; appState.cropY = 0;
+        appState.cropW = img.width; appState.cropH = img.height;
+        appState.resizeW = img.width; appState.resizeH = img.height;
+        pushHistory('Magic Eraser');
+        render();
         toast('✅ Magic Eraser done!');
         setStatus('ready', 'Ready');
         cancelMagicEraser();
