@@ -1673,11 +1673,13 @@ function initMaskCanvas(){
   maskCanvas.style.left = '0';
   maskCanvas.style.zIndex = '20';
   maskCanvas.style.pointerEvents = 'all';
-  maskCanvas.style.display = 'block';
   maskCanvas.style.opacity = '0.55';
   maskCanvas.style.cursor = 'crosshair';
   maskCtx = maskCanvas.getContext('2d');
   maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+  maskCanvas.style.display = 'block';
+  maskCanvas.removeAttribute('hidden');
+  console.log('mask canvas shown:', maskCanvas.style.display, maskCanvas.width, maskCanvas.height);
 
   maskCanvas.onmousedown = (e) => { isDrawing = true; drawMask(e); };
   maskCanvas.onmousemove = (e) => { if(isDrawing) drawMask(e); };
