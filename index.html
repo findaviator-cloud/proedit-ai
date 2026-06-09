@@ -1728,7 +1728,7 @@ function toggleMagicEraser(){
       bar.id = 'magic-apply-bar';
       bar.style.cssText = 'position:absolute;bottom:60px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:40;';
       bar.innerHTML = `
-        <button id="magic-apply-btn" onclick="applyMagicEraser()" style="background:linear-gradient(135deg,var(--accent3),var(--accent2));color:#fff;border:none;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer">✨ Apply Magic Eraser</button>
+        <button id="magic-apply-btn" onclick="window.applyMagicEraser()" style="background:linear-gradient(135deg,var(--accent3),var(--accent2));color:#fff;border:none;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer">✨ Apply Magic Eraser</button>
         <input type="range" min="5" max="80" value="30" oninput="eraserSize=+this.value" style="width:80px" title="Brush size">
         <button onclick="cancelMagicEraser()" style="background:var(--surf3);color:var(--txt);border:1px solid var(--border2);padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer">Cancel</button>
       `;
