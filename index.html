@@ -843,6 +843,13 @@ const DEFAULT = Object.freeze({
 let appState = structuredClone(DEFAULT);
 let history=[], redoStack=[], actionLog=[];
 let originalImage=null, maskedCanvas=null;
+// Expose to window for magic eraser
+Object.defineProperty(window, '_getOriginalImage', { get: () => originalImage });
+Object.defineProperty(window, '_setOriginalImage', { value: (v) => { originalImage = v; } });
+Object.defineProperty(window, '_getMaskedCanvas', { get: () => maskedCanvas });
+Object.defineProperty(window, '_getRender', { value: () => render() });
+Object.defineProperty(window, '_getAppState', { get: () => appState });
+Object.defineProperty(window, '_getPushHistory', { value: (v) => pushHistory(v) });
 let isRemovingBg=false; let imageToken=0;
 let zoom=1, panX=0, panY=0;
 let isPanning=false, panStart={x:0,y:0};
