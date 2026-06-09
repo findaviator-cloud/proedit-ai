@@ -1655,9 +1655,10 @@ document.getElementById('rb-flip-v').addEventListener('click',()=>mutate(()=>{ap
 document.getElementById('rb-rmbg').addEventListener('click',()=>removeBackground(++imageToken));
 /* ── Magic Eraser ── */
 let magicEraserActive = false;
-let maskCtx = null;
-let isDrawing = false;
-let eraserSize = 30;
+let __maskCtx = null;
+let __isDrawing = false;
+let __eraserSize = 30;
+let _maskData = null; // store painted pixels
 
 function initMaskCanvas(){
   const maskCanvas = document.getElementById('mask-canvas');
@@ -1675,25 +1676,25 @@ function initMaskCanvas(){
   maskCanvas.style.pointerEvents = 'all';
   maskCanvas.style.opacity = '0.55';
   maskCanvas.style.cursor = 'crosshair';
-  maskCtx = maskCanvas.getContext('2d');
-  maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+  _maskCtx = maskCanvas.getContext('2d');
+  _maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
   maskCanvas.style.display = 'block';
   maskCanvas.removeAttribute('hidden');
   console.log('mask canvas shown:', maskCanvas.style.display, maskCanvas.width, maskCanvas.height);
 
-  maskCanvas.onmousedown = (e) => { isDrawing = true; drawMask(e); };
-  maskCanvas.onmousemove = (e) => { if(isDrawing) drawMask(e); };
-  maskCanvas.onmouseup = () => { isDrawing = false; };
-  maskCanvas.onmouseleave = () => { isDrawing = false; };
+  maskCanvas.onmousedown = (e) => { _isDrawing = true; drawMask(e); };
+  maskCanvas.onmousemove = (e) => { if(_isDrawing) drawMask(e); };
+  maskCanvas.onmouseup = () => { _isDrawing = false; };
+  maskCanvas.onmouseleave = () => { _isDrawing = false; };
 
   // Touch support
-  maskCanvas.ontouchstart = (e) => { isDrawing = true; drawMask(e.touches[0]); e.preventDefault(); };
-  maskCanvas.ontouchmove = (e) => { if(isDrawing) drawMask(e.touches[0]); e.preventDefault(); };
-  maskCanvas.ontouchend = () => { isDrawing = false; };
+  maskCanvas.ontouchstart = (e) => { _isDrawing = true; drawMask(e.touches[0]); e.preventDefault(); };
+  maskCanvas.ontouchmove = (e) => { if(_isDrawing) drawMask(e.touches[0]); e.preventDefault(); };
+  maskCanvas.ontouchend = () => { _isDrawing = false; };
 }
 
 function drawMask(e){
-  if(!maskCtx) return;
+  if(!_maskCtx) return;
   const maskCanvas = document.getElementById('mask-canvas');
   const rect = maskCanvas.getBoundingClientRect();
   const scaleX = maskCanvas.width / rect.width;
@@ -1701,11 +1702,11 @@ function drawMask(e){
   const x = (e.clientX - rect.left) * scaleX;
   const y = (e.clientY - rect.top) * scaleY;
   // Red visible brush + white mask for API
-  maskCtx.globalCompositeOperation = 'source-over';
-  maskCtx.fillStyle = 'rgba(255,50,50,0.7)';
-  maskCtx.beginPath();
-  maskCtx.arc(x, y, eraserSize, 0, Math.PI * 2);
-  maskCtx.fill();
+  _maskCtx.globalCompositeOperation = 'source-over';
+  _maskCtx.fillStyle = 'rgba(255,50,50,0.7)';
+  _maskCtx.beginPath();
+  _maskCtx.arc(x, y, _eraserSize, 0, Math.PI * 2);
+  _maskCtx.fill();
 }
 
 function toggleMagicEraser(){
@@ -1724,7 +1725,7 @@ function toggleMagicEraser(){
       bar.style.cssText = 'position:absolute;bottom:60px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:40;';
       bar.innerHTML = `
         <button id="magic-apply-btn" style="background:linear-gradient(135deg,var(--accent3),var(--accent2));color:#fff;border:none;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer">✨ Apply Magic Eraser</button>
-        <input type="range" min="5" max="80" value="30" oninput="eraserSize=+this.value" style="width:80px" title="Brush size">
+        <input type="range" min="5" max="80" value="30" oninput="_eraserSize=+this.value" style="width:80px" title="Brush size">
         <button onclick="cancelMagicEraser()" style="background:var(--surf3);color:var(--txt);border:1px solid var(--border2);padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer">Cancel</button>
       `;
       document.getElementById('canvas-area').appendChild(bar);
@@ -1761,7 +1762,7 @@ async function applyMagicEraser(){
     const tCtx = tempMask.getContext('2d');
     tCtx.fillStyle = 'black';
     tCtx.fillRect(0, 0, tempMask.width, tempMask.height);
-    const imgData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+    const imgData = _maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
     const outData = tCtx.createImageData(tempMask.width, tempMask.height);
     for(let i = 0; i < imgData.data.length; i += 4){
       const r = imgData.data[i], a = imgData.data[i+3];
