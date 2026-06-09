@@ -1256,7 +1256,7 @@ async function upscaleImage(){
   btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="28" stroke-dashoffset="0"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg><span>Upscaling...</span>';
   btn.style.color = 'var(--gold)';
   btn.disabled = true;
-  showToast('⏳ Upscaling 4x... please wait');
+  toast('⏳ Upscaling 4x... please wait');
   setStatus('working','Upscaling 4x...');
   try {
     const b64 = editorCanvas.toDataURL('image/png');
@@ -1272,7 +1272,7 @@ async function upscaleImage(){
         editorCanvas.width = img.width;
         editorCanvas.height = img.height;
         ctx.drawImage(img, 0, 0);
-        showToast(`✅ Upscaled to ${img.width}x${img.height}`);
+        toast(`✅ Upscaled to ${img.width}x${img.height}`);
         setStatus('ready','Ready');
         mutate(()=>{},'Upscale 4x');
         btn.innerHTML = origHTML;
@@ -1281,7 +1281,7 @@ async function upscaleImage(){
       img.src = data.image;
     }
   } catch(e) {
-    showToast('❌ Upscale failed: ' + e.message);
+    toast('❌ Upscale failed: ' + e.message);
     setStatus('ready','Ready');
     btn.innerHTML = origHTML;
     btn.disabled = false;
@@ -1297,7 +1297,7 @@ async function faceEnhance(){
   btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="28"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg><span>Enhancing...</span>';
   btn.style.color = 'var(--cyan)';
   btn.disabled = true;
-  showToast('⏳ Enhancing faces... please wait');
+  toast('⏳ Enhancing faces... please wait');
   setStatus('working','Face Enhancing...');
   try {
     const b64 = editorCanvas.toDataURL('image/png');
@@ -1313,7 +1313,7 @@ async function faceEnhance(){
         editorCanvas.width = img.width;
         editorCanvas.height = img.height;
         ctx.drawImage(img, 0, 0);
-        showToast('✅ Face enhanced!');
+        toast('✅ Face enhanced!');
         setStatus('ready','Ready');
         mutate(()=>{},'Face Enhance');
         btn.innerHTML = origHTML;
@@ -1322,7 +1322,7 @@ async function faceEnhance(){
       img.src = data.image;
     }
   } catch(e) {
-    showToast('❌ Face enhance failed: ' + e.message);
+    toast('❌ Face enhance failed: ' + e.message);
     setStatus('ready','Ready');
     btn.innerHTML = origHTML;
     btn.disabled = false;
@@ -1757,7 +1757,7 @@ async function applyMagicEraser(){
   if(applyBtn){ applyBtn.innerHTML='⏳ Processing...'; applyBtn.disabled=true; applyBtn.style.opacity='0.7'; }
   toast('⏳ Magic Eraser running... 30 sec');
   setStatus('working','Magic Eraser...');
-  showToast('⏳ Magic Eraser running...');
+  toast('⏳ Magic Eraser running...');
   setStatus('working', 'Magic Eraser...');
   try {
     const imgB64 = editorCanvas.toDataURL('image/png');
