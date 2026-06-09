@@ -1752,6 +1752,11 @@ function cancelMagicEraser(){
 
 async function applyMagicEraser(){
   const maskCanvas = document.getElementById('mask-canvas');
+  // Processing show karo
+  const applyBtn = document.getElementById('magic-apply-btn');
+  if(applyBtn){ applyBtn.innerHTML='⏳ Processing...'; applyBtn.disabled=true; applyBtn.style.opacity='0.7'; }
+  toast('⏳ Magic Eraser running... 30 sec');
+  setStatus('working','Magic Eraser...');
   showToast('⏳ Magic Eraser running...');
   setStatus('working', 'Magic Eraser...');
   try {
