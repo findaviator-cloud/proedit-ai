@@ -1787,14 +1787,19 @@ async function applyMagicEraser(){
     if(data.success){
       const img = new Image();
       img.onload = () => {
+        // Seedha canvas pe draw karo — render() mat bulao
+        const edCv = document.getElementById('editor-canvas');
+        const edCt = edCv.getContext('2d');
+        edCv.width = img.width;
+        edCv.height = img.height;
+        edCt.clearRect(0, 0, img.width, img.height);
+        edCt.drawImage(img, 0, 0);
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = img.width;
         tempCanvas.height = img.height;
         tempCanvas.getContext('2d').drawImage(img, 0, 0);
         window._setOriginalImage(tempCanvas);
-        window._getAppState.hasMask = false;
         window._getPushHistory('Magic Eraser');
-        window._getRender();
         toast('✅ Magic Eraser done!');
         setStatus('ready', 'Ready');
         cancelMagicEraser();
