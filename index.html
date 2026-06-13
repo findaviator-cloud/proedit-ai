@@ -1678,7 +1678,7 @@ function initMaskCanvas(){
   maskCanvas.style.position = 'absolute';
   maskCanvas.style.top  = '0';
   maskCanvas.style.left = '0';
-  maskCanvas.style.zIndex = '20';
+  maskCanvas.style.zIndex = '10';
   maskCanvas.style.pointerEvents = 'all';
   maskCanvas.style.display = 'block';
   maskCanvas.style.opacity = '0.55';
@@ -1732,7 +1732,7 @@ function toggleMagicEraser(){
         <input type="range" min="5" max="80" value="30" oninput="eraserSize=+this.value" style="width:80px" title="Brush size">
         <button id="magic-cancel-btn" style="background:var(--surf3);color:var(--txt);border:1px solid var(--border2);padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer">Cancel</button>
       `;
-      document.getElementById('canvas-area').appendChild(bar);
+      document.getElementById('canvas-stage').appendChild(bar);
     }
   } else {
     cancelMagicEraser();
