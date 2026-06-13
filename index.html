@@ -1733,8 +1733,7 @@ function toggleMagicEraser(){
         <button id="magic-cancel-btn" style="background:var(--surf3);color:var(--txt);border:1px solid var(--border2);padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer">Cancel</button>
       `;
       document.getElementById('canvas-area').appendChild(bar);
-      // Mask canvas pointer events off karo taaki bar pe click ho sake
-      document.getElementById('mask-canvas').style.pointerEvents = 'none';
+
     }
   } else {
     cancelMagicEraser();
@@ -1747,6 +1746,7 @@ function cancelMagicEraser(){
   btn.style.background = '';
   btn.style.borderColor = '';
   const maskCanvas = document.getElementById('mask-canvas');
+  maskCanvas.style.pointerEvents = 'all';
   maskCanvas.style.display = 'none';
   const bar = document.getElementById('magic-apply-bar');
   if(bar) bar.remove();
@@ -1755,6 +1755,8 @@ function cancelMagicEraser(){
 async function applyMagicEraser(){
   const maskCanvas = document.getElementById('mask-canvas');
   // Processing show karo
+  // Mask canvas pointer events off karo taaki apply button click ho sake
+  document.getElementById('mask-canvas').style.pointerEvents = 'none';
   const applyBtn = document.getElementById('magic-apply-btn');
   if(applyBtn){ applyBtn.innerHTML='⏳ Processing...'; applyBtn.disabled=true; applyBtn.style.opacity='0.7'; }
   toast('⏳ Magic Eraser running... 30 sec');
