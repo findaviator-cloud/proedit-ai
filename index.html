@@ -2204,9 +2204,9 @@ function bulkRotate(deg){
   toast(`Rotated ${targets.length} image${targets.length!==1?'s':''} by ${deg}°`);
 }
 
-document.getElementById('bulk-rotate-l').addEventListener('click',()=>bulkRotate(-90));
-document.getElementById('bulk-rotate-r').addEventListener('click',()=>bulkRotate(90));
-document.getElementById('bulk-rotate-180').addEventListener('click',()=>bulkRotate(180));
+(function(){ const _bulk_rotate_l=document.getElementById('bulk-rotate-l'); if(_bulk_rotate_l) _bulk_rotate_l.addEventListener('click',()=>bulkRotate(-90)); })();
+(function(){ const _bulk_rotate_r=document.getElementById('bulk-rotate-r'); if(_bulk_rotate_r) _bulk_rotate_r.addEventListener('click',()=>bulkRotate(90)); })();
+(function(){ const _bulk_rotate_180=document.getElementById('bulk-rotate-180'); if(_bulk_rotate_180) _bulk_rotate_180.addEventListener('click',()=>bulkRotate(180)); })();
 document.getElementById('bulk-rotate-custom').addEventListener('click',()=>{
   const v=parseFloat(document.getElementById('bulk-deg-input').value);
   if(isNaN(v)){toast('Enter valid degrees');return;}
@@ -2235,9 +2235,9 @@ function setBulkFilter(f){
   t.forEach(img=>{img.filter=f;img.canvas=applyTransformToCanvas(img.origCanvas,img.rotation,img.flipX,img.flipY,img.filter);});
   renderBulkGrid();toast(f+' applied to '+t.length+' images');
 }
-document.getElementById('bulk-grayscale').addEventListener('click',()=>setBulkFilter('grayscale'));
-document.getElementById('bulk-sepia').addEventListener('click',()=>setBulkFilter('sepia'));
-document.getElementById('bulk-invert').addEventListener('click',()=>setBulkFilter('invert'));
+(function(){ const _bulk_grayscale=document.getElementById('bulk-grayscale'); if(_bulk_grayscale) _bulk_grayscale.addEventListener('click',()=>setBulkFilter('grayscale')); })();
+(function(){ const _bulk_sepia=document.getElementById('bulk-sepia'); if(_bulk_sepia) _bulk_sepia.addEventListener('click',()=>setBulkFilter('sepia')); })();
+(function(){ const _bulk_invert=document.getElementById('bulk-invert'); if(_bulk_invert) _bulk_invert.addEventListener('click',()=>setBulkFilter('invert')); })();
 
 /* ── bulk BG removal ── */
 /* ── Bulk Resize ── */
@@ -2486,9 +2486,9 @@ async function bulkExport(format, onlySelected){
   }
 }
 
-document.getElementById('bulk-export-png').addEventListener('click',()=>bulkExport('png',false));
-document.getElementById('bulk-export-jpg').addEventListener('click',()=>bulkExport('jpg',false));
-document.getElementById('bulk-export-sel').addEventListener('click',()=>bulkExport('png',true));
+(function(){ const _bulk_export_png=document.getElementById('bulk-export-png'); if(_bulk_export_png) _bulk_export_png.addEventListener('click',()=>bulkExport('png',false)); })();
+(function(){ const _bulk_export_jpg=document.getElementById('bulk-export-jpg'); if(_bulk_export_jpg) _bulk_export_jpg.addEventListener('click',()=>bulkExport('jpg',false)); })();
+(function(){ const _bulk_export_sel=document.getElementById('bulk-export-sel'); if(_bulk_export_sel) _bulk_export_sel.addEventListener('click',()=>bulkExport('png',true)); })();
 
 /* ── drag-drop into bulk panel ── */
 bulkGrid.addEventListener('dragover',e=>{e.preventDefault();});
