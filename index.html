@@ -1790,17 +1790,7 @@ async function _meApply(){
 }
 
 document.getElementById('rb-magic-eraser').addEventListener('click', _meToggle);
-window.applyMagicEraser = applyMagicEraser;
-window.cancelMagicEraser = cancelMagicEraser;
 
-document.addEventListener('click', function(e){
-  if(e.target && e.target.id === 'magic-apply-btn'){
-    window.applyMagicEraser();
-  }
-  if(e.target && e.target.id === 'magic-cancel-btn'){
-    window.cancelMagicEraser();
-  }
-});
 document.getElementById('rb-upscale').addEventListener('click',()=>upscaleImage());
 document.getElementById('rb-face').addEventListener('click',()=>faceEnhance());
 
