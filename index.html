@@ -2057,9 +2057,9 @@ function closeBulkPanel(){
   bulkPanel.classList.remove('open');
   bulkFab.classList.remove('hidden');
 }
-document.getElementById('rb-bulk-open')?.addEventListener('click', openBulkPanel);
+const _rbBulk = document.getElementById('rb-bulk-open'); if(_rbBulk) _rbBulk.addEventListener('click', openBulkPanel);
 if(bulkFab) bulkFab.addEventListener('click', openBulkPanel);
-document.getElementById('bulk-close')?.addEventListener('click', closeBulkPanel);
+const _bulkClose = document.getElementById('bulk-close'); if(_bulkClose) _bulkClose.addEventListener('click', closeBulkPanel);
 
 // Close on Escape
 document.addEventListener('keydown', e=>{
