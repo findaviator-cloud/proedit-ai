@@ -1259,7 +1259,7 @@ async function upscaleImage(){
   toast('⏳ Upscaling 4x... please wait');
   setStatus('working','Upscaling 4x...');
   try {
-    const b64 = editorCanvas.toDataURL('image/png');
+    const b64 = document.getElementById('editor-canvas').toDataURL('image/png');
     const res = await fetch('https://ppchaubey-proedit-ai.hf.space/upscale', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1269,8 +1269,8 @@ async function upscaleImage(){
     if(data.success && tok===imageToken){
       const img = new Image();
       img.onload = () => {
-        editorCanvas.width = img.width;
-        editorCanvas.height = img.height;
+        document.getElementById('editor-canvas').width = img.width;
+        document.getElementById('editor-canvas').height = img.height;
         ctx.drawImage(img, 0, 0);
         toast(`✅ Upscaled to ${img.width}x${img.height}`);
         setStatus('ready','Ready');
@@ -1300,7 +1300,7 @@ async function faceEnhance(){
   toast('⏳ Enhancing faces... please wait');
   setStatus('working','Face Enhancing...');
   try {
-    const b64 = editorCanvas.toDataURL('image/png');
+    const b64 = document.getElementById('editor-canvas').toDataURL('image/png');
     const res = await fetch('https://ppchaubey-proedit-ai.hf.space/face-enhance', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1310,8 +1310,8 @@ async function faceEnhance(){
     if(data.success && tok===imageToken){
       const img = new Image();
       img.onload = () => {
-        editorCanvas.width = img.width;
-        editorCanvas.height = img.height;
+        document.getElementById('editor-canvas').width = img.width;
+        document.getElementById('editor-canvas').height = img.height;
         ctx.drawImage(img, 0, 0);
         toast('✅ Face enhanced!');
         setStatus('ready','Ready');
