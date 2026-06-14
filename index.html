@@ -2058,7 +2058,7 @@ function closeBulkPanel(){
   bulkFab.classList.remove('hidden');
 }
 document.getElementById('rb-bulk-open').addEventListener('click', openBulkPanel);
-bulkFab.addEventListener('click', openBulkPanel);
+if(bulkFab) bulkFab.addEventListener('click', openBulkPanel);
 document.getElementById('bulk-close').addEventListener('click', closeBulkPanel);
 
 // Close on Escape
