@@ -1767,9 +1767,11 @@ async function _meApply(){
     if(data.success){
       const img = new Image();
       img.onload = ()=>{
-        ec.width = img.width;
-        ec.height = img.height;
-        ec.getContext('2d').drawImage(img,0,0);
+        // Size same rakho — sirf content draw karo
+        const ec2 = document.getElementById('editor-canvas');
+        const ctx2 = ec2.getContext('2d');
+        ctx2.clearRect(0, 0, ec2.width, ec2.height);
+        ctx2.drawImage(img, 0, 0, ec2.width, ec2.height);
         toast('✅ Magic Eraser done!');
         setStatus('ready','Ready');
         _meCancel();
