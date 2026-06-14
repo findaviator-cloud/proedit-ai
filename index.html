@@ -2063,11 +2063,11 @@ const _bulkClose = document.getElementById('bulk-close'); if(_bulkClose) _bulkCl
 
 // Close on Escape
 document.addEventListener('keydown', e=>{
-  if(e.key==='Escape' && bulkPanel.classList.contains('open')) closeBulkPanel();
+  if(e.key==='Escape' && bulkPanel && bulkPanel.classList.contains('open')) closeBulkPanel();
 });
 
 /* ── upload ── */
-document.getElementById('bulk-upload').addEventListener('change',e=>{
+const _bulkUpload = document.getElementById('bulk-upload'); if(_bulkUpload) _bulkUpload.addEventListener('change',e=>{
   const files=[...e.target.files];
   if(!files.length) return;
   bulkPanel.classList.add('open');
