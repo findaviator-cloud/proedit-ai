@@ -1661,165 +1661,135 @@ document.getElementById('rb-flip-h').addEventListener('click',()=>mutate(()=>{ap
 document.getElementById('rb-flip-v').addEventListener('click',()=>mutate(()=>{appState.flipY=!appState.flipY;},'Flip V'));
 document.getElementById('rb-rmbg').addEventListener('click',()=>removeBackground(++imageToken));
 /* ── Magic Eraser ── */
-let magicEraserActive = false;
-let maskCtx = null;
-let isDrawing = false;
-let eraserSize = 30;
+let _meActive = false;
+let _meDrawing = false;
+let _meBrushSize = 30;
+let _meCtx = null;
 
-function initMaskCanvas(){
-  const maskCanvas = document.getElementById('mask-canvas');
-  const edCanvas = document.getElementById('editor-canvas');
-  // editorCanvas ke exact size match karo
-  maskCanvas.width  = edCanvas.width;
-  maskCanvas.height = edCanvas.height;
-  // CSS size bhi same rakho
-  maskCanvas.style.width  = edCanvas.offsetWidth  + 'px';
-  maskCanvas.style.height = edCanvas.offsetHeight + 'px';
-  maskCanvas.style.position = 'absolute';
-  maskCanvas.style.top  = '0';
-  maskCanvas.style.left = '0';
-  maskCanvas.style.zIndex = '10';
-  maskCanvas.style.pointerEvents = 'all';
-  maskCanvas.style.display = 'block';
-  maskCanvas.style.opacity = '0.55';
-  maskCanvas.style.cursor = 'crosshair';
-  maskCtx = maskCanvas.getContext('2d');
-  maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-
-  maskCanvas.onmousedown = (e) => { isDrawing = true; drawMask(e); };
-  maskCanvas.onmousemove = (e) => { if(isDrawing) drawMask(e); };
-  maskCanvas.onmouseup = () => { isDrawing = false; };
-  maskCanvas.onmouseleave = () => { isDrawing = false; };
-
-  // Touch support
-  maskCanvas.ontouchstart = (e) => { isDrawing = true; drawMask(e.touches[0]); e.preventDefault(); };
-  maskCanvas.ontouchmove = (e) => { if(isDrawing) drawMask(e.touches[0]); e.preventDefault(); };
-  maskCanvas.ontouchend = () => { isDrawing = false; };
+function _meInit(){
+  const mc = document.getElementById('mask-canvas');
+  const ec = document.getElementById('editor-canvas');
+  mc.width = ec.width;
+  mc.height = ec.height;
+  mc.style.cssText = `position:absolute;top:0;left:0;width:${ec.offsetWidth}px;height:${ec.offsetHeight}px;z-index:15;display:block;opacity:0.6;cursor:crosshair;pointer-events:all`;
+  _meCtx = mc.getContext('2d');
+  _meCtx.clearRect(0,0,mc.width,mc.height);
 }
 
-function drawMask(e){
-  if(!maskCtx) return;
-  const maskCanvas = document.getElementById('mask-canvas');
-  const rect = maskCanvas.getBoundingClientRect();
-  const scaleX = maskCanvas.width / rect.width;
-  const scaleY = maskCanvas.height / rect.height;
-  const x = (e.clientX - rect.left) * scaleX;
-  const y = (e.clientY - rect.top) * scaleY;
-  // Red visible brush + white mask for API
-  maskCtx.globalCompositeOperation = 'source-over';
-  maskCtx.fillStyle = 'rgba(255,50,50,0.7)';
-  maskCtx.beginPath();
-  maskCtx.arc(x, y, eraserSize, 0, Math.PI * 2);
-  maskCtx.fill();
+function _meDraw(e){
+  if(!_meCtx) return;
+  const mc = document.getElementById('mask-canvas');
+  const r = mc.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (mc.width/r.width);
+  const y = (e.clientY - r.top) * (mc.height/r.height);
+  _meCtx.fillStyle = 'rgba(255,0,0,0.8)';
+  _meCtx.beginPath();
+  _meCtx.arc(x, y, _meBrushSize, 0, Math.PI*2);
+  _meCtx.fill();
 }
 
-function toggleMagicEraser(){
-  magicEraserActive = !magicEraserActive;
+function _meToggle(){
+  _meActive = !_meActive;
+  const mc = document.getElementById('mask-canvas');
   const btn = document.getElementById('rb-magic-eraser');
-  const maskCanvas = document.getElementById('mask-canvas');
-  if(magicEraserActive){
-    btn.style.background = 'rgba(247,92,142,0.2)';
-    btn.style.borderColor = 'var(--accent3)';
-    toast('🖌️ Paint over area to erase — then click Apply');
-    initMaskCanvas();
-    // Apply button show karo
-    if(!document.getElementById('magic-apply-bar')){
-      const bar = document.createElement('div');
-      bar.id = 'magic-apply-bar';
-      bar.style.cssText = 'position:absolute;bottom:60px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:40;';
+  if(_meActive){
+    btn.style.background = 'rgba(247,92,142,0.3)';
+    _meInit();
+    mc.onmousedown = e => { _meDrawing=true; _meDraw(e); };
+    mc.onmousemove = e => { if(_meDrawing) _meDraw(e); };
+    mc.onmouseup = ()=>{ _meDrawing=false; };
+    mc.onmouseleave = ()=>{ _meDrawing=false; };
+    // Apply bar
+    let bar = document.getElementById('_me_bar');
+    if(!bar){
+      bar = document.createElement('div');
+      bar.id = '_me_bar';
+      bar.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:9999;';
       bar.innerHTML = `
-        <button id="magic-apply-btn" style="background:linear-gradient(135deg,var(--accent3),var(--accent2));color:#fff;border:none;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer">✨ Apply Magic Eraser</button>
-        <input type="range" min="5" max="80" value="30" oninput="eraserSize=+this.value" style="width:80px" title="Brush size">
-        <button id="magic-cancel-btn" style="background:var(--surf3);color:var(--txt);border:1px solid var(--border2);padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer">Cancel</button>
+        <button id="_me_apply" style="background:linear-gradient(135deg,#f75c8e,#7b5cfa);color:#fff;border:none;padding:10px 24px;border-radius:24px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.5)">✨ Apply Magic Eraser</button>
+        <input type="range" id="_me_size" min="5" max="80" value="30" style="width:80px;cursor:pointer" title="Brush size">
+        <button id="_me_cancel" style="background:#22222a;color:#ddd;border:1px solid #3a3a48;padding:10px 18px;border-radius:24px;font-size:13px;cursor:pointer">✕ Cancel</button>
       `;
-      document.getElementById('canvas-area').appendChild(bar);
-
+      document.body.appendChild(bar);
+      document.getElementById('_me_apply').onclick = _meApply;
+      document.getElementById('_me_cancel').onclick = _meCancel;
+      document.getElementById('_me_size').oninput = function(){ _meBrushSize = +this.value; };
     }
+    bar.style.display = 'flex';
+    toast('🖌️ Paint area to erase — then Apply');
   } else {
-    cancelMagicEraser();
+    _meCancel();
   }
 }
 
-function cancelMagicEraser(){
-  magicEraserActive = false;
-  const btn = document.getElementById('rb-magic-eraser');
-  btn.style.background = '';
-  btn.style.borderColor = '';
-  const maskCanvas = document.getElementById('mask-canvas');
-  maskCanvas.style.pointerEvents = 'all';
-  maskCanvas.style.display = 'none';
-  const bar = document.getElementById('magic-apply-bar');
-  if(bar) bar.remove();
+function _meCancel(){
+  _meActive = false;
+  document.getElementById('rb-magic-eraser').style.background = '';
+  const mc = document.getElementById('mask-canvas');
+  mc.style.display = 'none';
+  mc.onmousedown = null;
+  mc.onmousemove = null;
+  const bar = document.getElementById('_me_bar');
+  if(bar) bar.style.display = 'none';
 }
 
-async function applyMagicEraser(){
-  const maskCanvas = document.getElementById('mask-canvas');
-  // Processing show karo
-  // Mask canvas pointer events off karo taaki apply button click ho sake
-  document.getElementById('mask-canvas').style.pointerEvents = 'none';
-  const applyBtn = document.getElementById('magic-apply-btn');
-  if(applyBtn){ applyBtn.innerHTML='⏳ Processing...'; applyBtn.disabled=true; applyBtn.style.opacity='0.7'; }
-  toast('⏳ Magic Eraser running... 30 sec');
+async function _meApply(){
+  const mc = document.getElementById('mask-canvas');
+  const ec = document.getElementById('editor-canvas');
+  const applyBtn = document.getElementById('_me_apply');
+  applyBtn.textContent = '⏳ Processing...';
+  applyBtn.disabled = true;
+  toast('⏳ Magic Eraser... please wait');
   setStatus('working','Magic Eraser...');
-  toast('⏳ Magic Eraser running...');
-  setStatus('working', 'Magic Eraser...');
   try {
-    const imgB64 = document.getElementById('editor-canvas').toDataURL('image/png');
-    // White mask banao API ke liye — red pixels ko white mein convert karo
-    const tempMask = document.createElement('canvas');
-    tempMask.width = maskCanvas.width;
-    tempMask.height = maskCanvas.height;
-    const tCtx = tempMask.getContext('2d');
-    tCtx.fillStyle = 'black';
-    tCtx.fillRect(0, 0, tempMask.width, tempMask.height);
-    const imgData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-    const outData = tCtx.createImageData(tempMask.width, tempMask.height);
-    for(let i = 0; i < imgData.data.length; i += 4){
-      const r = imgData.data[i], a = imgData.data[i+3];
-      const isRed = r > 150 && a > 50;
-      outData.data[i] = outData.data[i+1] = outData.data[i+2] = isRed ? 255 : 0;
-      outData.data[i+3] = 255;
+    const imgB64 = ec.toDataURL('image/png');
+    // Red → white mask
+    const tmp = document.createElement('canvas');
+    tmp.width = mc.width; tmp.height = mc.height;
+    const tc = tmp.getContext('2d');
+    tc.fillStyle = 'black';
+    tc.fillRect(0,0,tmp.width,tmp.height);
+    const id = _meCtx.getImageData(0,0,mc.width,mc.height);
+    const od = tc.createImageData(tmp.width,tmp.height);
+    for(let i=0;i<id.data.length;i+=4){
+      const isRed = id.data[i]>100 && id.data[i+3]>50;
+      od.data[i]=od.data[i+1]=od.data[i+2]=isRed?255:0;
+      od.data[i+3]=255;
     }
-    tCtx.putImageData(outData, 0, 0);
-    const maskB64 = tempMask.toDataURL('image/png');
-    const res = await fetch('https://ppchaubey-proedit-ai.hf.space/inpaint', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({image: imgB64, mask: maskB64, radius: 5})
+    tc.putImageData(od,0,0);
+    const maskB64 = tmp.toDataURL('image/png');
+    const res = await fetch('https://ppchaubey-proedit-ai.hf.space/inpaint',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image:imgB64, mask:maskB64, radius:5})
     });
     const data = await res.json();
     if(data.success){
       const img = new Image();
-      img.onload = () => {
-        // Seedha canvas pe draw karo — render() mat bulao
-        const edCv = document.getElementById('editor-canvas');
-        const edCt = edCv.getContext('2d');
-        edCv.width = img.width;
-        edCv.height = img.height;
-        edCt.clearRect(0, 0, img.width, img.height);
-        edCt.drawImage(img, 0, 0);
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = img.width;
-        tempCanvas.height = img.height;
-        tempCanvas.getContext('2d').drawImage(img, 0, 0);
-        window._setOriginalImage(tempCanvas);
-        window._getPushHistory('Magic Eraser');
+      img.onload = ()=>{
+        ec.width = img.width;
+        ec.height = img.height;
+        ec.getContext('2d').drawImage(img,0,0);
         toast('✅ Magic Eraser done!');
-        setStatus('ready', 'Ready');
-        cancelMagicEraser();
+        setStatus('ready','Ready');
+        _meCancel();
       };
       img.src = data.image;
     } else {
-      toast('❌ Error: ' + (data.error||'Unknown'));
+      toast('❌ '+( data.error||'Failed'));
       setStatus('ready','Ready');
+      applyBtn.textContent = '✨ Apply Magic Eraser';
+      applyBtn.disabled = false;
     }
-  } catch(e) {
-    toast('❌ Failed: ' + e.message);
+  } catch(e){
+    toast('❌ '+e.message);
     setStatus('ready','Ready');
+    applyBtn.textContent = '✨ Apply Magic Eraser';
+    applyBtn.disabled = false;
   }
 }
 
-document.getElementById('rb-magic-eraser').addEventListener('click', toggleMagicEraser);
+document.getElementById('rb-magic-eraser').addEventListener('click', _meToggle);
 window.applyMagicEraser = applyMagicEraser;
 window.cancelMagicEraser = cancelMagicEraser;
 
