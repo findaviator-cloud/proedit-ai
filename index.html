@@ -2057,9 +2057,9 @@ function closeBulkPanel(){
   bulkPanel.classList.remove('open');
   bulkFab.classList.remove('hidden');
 }
-document.getElementById('rb-bulk-open').addEventListener('click', openBulkPanel);
+document.getElementById('rb-bulk-open')?.addEventListener('click', openBulkPanel);
 if(bulkFab) bulkFab.addEventListener('click', openBulkPanel);
-document.getElementById('bulk-close').addEventListener('click', closeBulkPanel);
+document.getElementById('bulk-close')?.addEventListener('click', closeBulkPanel);
 
 // Close on Escape
 document.addEventListener('keydown', e=>{
