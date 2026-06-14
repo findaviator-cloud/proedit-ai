@@ -1792,6 +1792,9 @@ async function _meApply(){
 }
 
 document.getElementById('rb-magic-eraser').addEventListener('click', _meToggle);
+window._meToggle = _meToggle;
+window._meApply = _meApply;
+window._meCancel = _meCancel;
 
 document.getElementById('rb-upscale').addEventListener('click',()=>upscaleImage());
 document.getElementById('rb-face').addEventListener('click',()=>faceEnhance());
