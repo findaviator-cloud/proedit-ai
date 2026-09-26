@@ -156,6 +156,82 @@ def load_input_image(mode="RGB"):
         raise ValueError("No image provided")
     return decode_image(data["image"]).convert(mode), data
 
+# ── Smart document auto-crop (edge detection + perspective correction) ──────
+DOC_MIN_AREA_FRAC = float(os.environ.get("DOC_MIN_AREA_FRAC", 0.15))
+
+def _order_points(pts):
+    rect = np.zeros((4, 2), dtype="float32")
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]      # top-left
+    rect[2] = pts[np.argmax(s)]      # bottom-right
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]   # top-right
+    rect[3] = pts[np.argmax(diff)]   # bottom-left
+    return rect
+
+def _four_point_transform(cv2mod, image_bgr, pts):
+    rect = _order_points(pts)
+    (tl, tr, br, bl) = rect
+    width_a = np.linalg.norm(br - bl)
+    width_b = np.linalg.norm(tr - tl)
+    max_width = max(int(width_a), int(width_b), 1)
+    height_a = np.linalg.norm(tr - br)
+    height_b = np.linalg.norm(tl - bl)
+    max_height = max(int(height_a), int(height_b), 1)
+    dst = np.array([[0, 0], [max_width - 1, 0],
+                     [max_width - 1, max_height - 1], [0, max_height - 1]], dtype="float32")
+    m = cv2mod.getPerspectiveTransform(rect, dst)
+    return cv2mod.warpPerspective(image_bgr, m, (max_width, max_height))
+
+def _find_document_contour(cv2mod, image_bgr):
+    """Downscale for fast contour search, find the largest plausible 4-point
+    quadrilateral (the document edge), return its corners scaled back to
+    full resolution. Returns None if nothing plausible is found."""
+    h, w = image_bgr.shape[:2]
+    target_h = 500
+    ratio = h / float(target_h) if h > target_h else 1.0
+    resized = cv2mod.resize(image_bgr, (max(1, int(w / ratio)), target_h)) if ratio != 1.0 else image_bgr.copy()
+
+    gray = cv2mod.cvtColor(resized, cv2mod.COLOR_BGR2GRAY)
+    gray = cv2mod.GaussianBlur(gray, (5, 5), 0)
+    edged = cv2mod.Canny(gray, 50, 150)
+    edged = cv2mod.dilate(edged, None, iterations=1)
+    edged = cv2mod.erode(edged, None, iterations=1)
+
+    contours, _ = cv2mod.findContours(edged.copy(), cv2mod.RETR_LIST, cv2mod.CHAIN_APPROX_SIMPLE)
+    contours = sorted(contours, key=cv2mod.contourArea, reverse=True)[:5]
+    img_area = resized.shape[0] * resized.shape[1]
+
+    for c in contours:
+        peri = cv2mod.arcLength(c, True)
+        approx = cv2mod.approxPolyDP(c, 0.02 * peri, True)
+        if len(approx) == 4 and cv2mod.contourArea(approx) > DOC_MIN_AREA_FRAC * img_area:
+            return approx.reshape(4, 2).astype("float32") * ratio
+    return None
+
+@app.route("/auto-crop-document", methods=["POST"])
+def auto_crop_document():
+    try:
+        guard_content_length(MAX_IMAGE_BYTES)
+        import cv2
+        img, _ = load_input_image("RGB")
+        img_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+        corners = _find_document_contour(cv2, img_bgr)
+        if corners is None:
+            return jsonify({"success": False, "detected": False,
+                             "error": "Document boundary not detected — try manual crop"})
+
+        warped_bgr = _four_point_transform(cv2, img_bgr, corners)
+        result = Image.fromarray(cv2.cvtColor(warped_bgr, cv2.COLOR_BGR2RGB))
+        return jsonify({"success": True, "detected": True, "image": encode_image(result),
+                         "output_size": list(result.size)})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400 if "No image" in str(e) else 413
+    except Exception:
+        log.exception("auto_crop_document failed")
+        return jsonify({"error": "Internal error auto-cropping document"}), 500
+
 # ── routes ────────────────────────────────────────────────────────────────────
 @app.route("/health", methods=["GET"])
 def health():

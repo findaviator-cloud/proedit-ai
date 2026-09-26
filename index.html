@@ -2403,6 +2403,45 @@ document.getElementById('bulk-rmbg').addEventListener('click',async()=>{
 
 function Path_stem(name){ return name.replace(/\.[^.]+$/,''); }
 
+/* ── bulk Smart Crop (auto document-boundary detect + deskew) ── */
+document.getElementById('bulk-smart-crop').addEventListener('click', async ()=>{
+  const targets = getTargets();
+  if(!targets.length){ toast('No images selected'); return; }
+  let done=0, skipped=0;
+  bulkStatusTx.textContent='Detecting document edges…';
+  for(const img of targets){
+    img.status='processing'; renderBulkGrid();
+    try{
+      const res = await fetch(`${API_BASE}/auto-crop-document`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({image: img.origCanvas.toDataURL('image/png')})
+      });
+      if(!res.ok) throw new Error('Server '+res.status);
+      const d = await res.json();
+      if(d.success && d.detected){
+        const bytes = Uint8Array.from(atob(d.image.split(',')[1]), c=>c.charCodeAt(0));
+        const bmp = await createImageBitmap(new Blob([bytes],{type:'image/png'}));
+        const c = document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height;
+        c.getContext('2d').drawImage(bmp,0,0);
+        img.origCanvas = c;
+        img.canvas = applyTransformToCanvas(c, img.rotation, img.flipX, img.flipY, img.filter);
+        img.status='done'; done++;
+      } else {
+        // boundary not found — leave image untouched so user can crop manually
+        img.status='error'; skipped++;
+      }
+    }catch(e){
+      console.warn('Smart crop failed:', e);
+      img.status='error'; skipped++;
+    }
+    renderBulkGrid();
+    bulkProgBar.style.width = Math.round((done+skipped)/targets.length*100)+'%';
+  }
+  bulkStatusTx.textContent = `Smart Crop: ${done} cropped, ${skipped} need manual crop`;
+  toast(skipped ? `${done} auto-cropped · ${skipped} need manual crop` : `All ${done} images auto-cropped ✅`);
+  setTimeout(()=>bulkProgBar.style.width='0%', 2000);
+});
+
 async function bulkRmbgOneByOne(targets, useServer){
   let done=0;
   for(const img of targets){
@@ -2601,6 +2640,7 @@ toast('ProEdit AI ready — open or drop an image!',3000);
     <button class="bulk-btn" id="bulk-resize-btn">⊡ Resize</button>
     <div class="bulk-sep"></div>
     <!-- AI -->
+    <button class="bulk-btn" id="bulk-smart-crop" style="color:var(--gold)">📄 Smart Crop</button>
     <button class="bulk-btn" id="bulk-auto-enhance" style="color:var(--gold)">✨ Auto Enhance</button>
     <button class="bulk-btn" id="bulk-upscale" style="color:var(--gold)">⬆ Upscale 4x</button>
     <button class="bulk-btn" id="bulk-face" style="color:var(--cyan)">👤 Face Enhance</button>
