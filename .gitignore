@@ -2,3 +2,6 @@ venv/
 __pycache__/
 *.pyc
 .env
+audit_output.txt
+full_audit.txt
+*.backup
