@@ -809,8 +809,6 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3)}
 <!-- SCRIPT -->
 <script type="module">
 
-/* ── API BASE (single source of truth — change this to switch backend/env) ── */
-const API_BASE = 'https://ppchaubey-proedit-ai.hf.space';
 
 /* ── DOM REFS ── */
 const upload        = document.getElementById('upload');
@@ -1101,7 +1099,7 @@ async function removeBgLocal(srcCanvas){
   rmbgMsg.textContent = 'Calling local rembg AI…';
   rmbgMsg.nextElementSibling.textContent = 'U2Net model — remove.bg quality';
   const dataURL = srcCanvas.toDataURL('image/png');
-  const res = await fetch(`${API_BASE}/remove-bg`, {
+  const res = await fetch('https://ppchaubey-proedit-ai.hf.space/remove-bg', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({image: dataURL})
@@ -1118,7 +1116,7 @@ async function removeBgLocal(srcCanvas){
 /* ── Check if local rembg server is running ── */
 async function checkLocalServer(){
   try{
-    const r = await fetch(`${API_BASE}/health`,{signal:AbortSignal.timeout(1500)});
+    const r = await fetch('https://ppchaubey-proedit-ai.hf.space/health',{signal:AbortSignal.timeout(1500)});
     const d = await r.json();
     return d.rembg === true;
   }catch(e){ return false; }
@@ -1262,7 +1260,7 @@ async function upscaleImage(){
   setStatus('working','Upscaling 4x...');
   try {
     const b64 = document.getElementById('editor-canvas').toDataURL('image/png');
-    const res = await fetch(`${API_BASE}/upscale`, {
+    const res = await fetch('https://ppchaubey-proedit-ai.hf.space/upscale', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({image: b64, scale: 4})
@@ -1303,7 +1301,7 @@ async function faceEnhance(){
   setStatus('working','Face Enhancing...');
   try {
     const b64 = document.getElementById('editor-canvas').toDataURL('image/png');
-    const res = await fetch(`${API_BASE}/face-enhance`, {
+    const res = await fetch('https://ppchaubey-proedit-ai.hf.space/face-enhance', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({image: b64})
@@ -1760,7 +1758,7 @@ async function _meApply(){
     }
     tc.putImageData(od,0,0);
     const maskB64 = tmp.toDataURL('image/png');
-    const res = await fetch(`${API_BASE}/inpaint`,{
+    const res = await fetch('https://ppchaubey-proedit-ai.hf.space/inpaint',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({image:imgB64, mask:maskB64, radius:5})
@@ -2296,7 +2294,7 @@ document.getElementById('bulk-upscale').addEventListener('click',async()=>{
     try{
       img.status = 'processing'; renderBulkGrid();
       const b64 = img.canvas.toDataURL('image/png');
-      const res = await fetch(`${API_BASE}/upscale`,{
+      const res = await fetch('https://ppchaubey-proedit-ai.hf.space/upscale',{
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({image: b64, scale: 4})
       });
@@ -2326,7 +2324,7 @@ document.getElementById('bulk-face').addEventListener('click',async()=>{
     try{
       img.status = 'processing'; renderBulkGrid();
       const b64 = img.canvas.toDataURL('image/png');
-      const res = await fetch(`${API_BASE}/face-enhance`,{
+      const res = await fetch('https://ppchaubey-proedit-ai.hf.space/face-enhance',{
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({image: b64})
       });
@@ -2362,7 +2360,7 @@ document.getElementById('bulk-rmbg').addEventListener('click',async()=>{
         name:img.name,
         image:img.origCanvas.toDataURL('image/png')
       }));
-      const res=await fetch(`${API_BASE}/remove-bg-bulk`,{
+      const res=await fetch('https://ppchaubey-proedit-ai.hf.space/remove-bg-bulk',{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({images, model:'isnet', format:'png'})
       });
@@ -2409,7 +2407,7 @@ async function bulkRmbgOneByOne(targets, useServer){
     img.status='processing';renderBulkGrid();
     try{
       if(useServer){
-        const res=await fetch(`${API_BASE}/remove-bg`,{
+        const res=await fetch('https://ppchaubey-proedit-ai.hf.space/remove-bg',{
           method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({image:img.origCanvas.toDataURL('image/png'),model:'isnet'})
         });
@@ -2513,7 +2511,7 @@ async function updateServerBadge(){
   const badge = document.getElementById('server-status-badge');
   if(!badge) return;
   try{
-    const r = await fetch(`${API_BASE}/health`,{signal:AbortSignal.timeout(1500)});
+    const r = await fetch('https://ppchaubey-proedit-ai.hf.space/health',{signal:AbortSignal.timeout(1500)});
     const d = await r.json();
     if(d.rembg){
       badge.style.background='rgba(34,197,94,.12)';

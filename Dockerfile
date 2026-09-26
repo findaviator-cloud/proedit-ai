@@ -24,5 +24,10 @@ COPY . .
 
 EXPOSE 7860
 ENV PORT=7860
+# Set ALLOWED_ORIGINS (comma-separated) at deploy time — without it CORS is wide open.
+# See .env.example for all supported runtime config vars.
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD python3 -c "import urllib.request,os; urllib.request.urlopen('http://localhost:'+os.environ.get('PORT','7860')+'/health', timeout=4)" || exit 1
 
 CMD ["gunicorn", "rmbg_server:app", "--workers", "1", "--timeout", "180", "--bind", "0.0.0.0:7860"]

@@ -1,0 +1,11 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+venv/
+.env
+*.zip
+models/
+README.md
+LICENSE
+.dockerignore
