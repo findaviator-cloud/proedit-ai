@@ -2409,13 +2409,35 @@ document.getElementById('bulk-smart-crop').addEventListener('click', async ()=>{
   if(!targets.length){ toast('No images selected'); return; }
   let done=0, skipped=0;
   bulkStatusTx.textContent='Detecting document edges…';
-  for(const img of targets){
-    img.status='processing'; renderBulkGrid();
+  for(let idx=0; idx<targets.length; idx++){
+    const img = targets[idx];
     try{
-      const res = await fetch(`${API_BASE}/auto-crop-document`,{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({image: img.origCanvas.toDataURL('image/png')})
+      img.status='processing'; renderBulkGrid();
+      bulkStatusTx.textContent = `Detecting document edges… (${idx+1}/${targets.length})`;
+
+      // Send as JPEG (not PNG) to cut payload size drastically for large phone
+      // photos — big speed win on upload, negligible quality loss for detection.
+      const jpegDataUrl = await new Promise(resolve=>{
+        img.origCanvas.toBlob(blob=>{
+          const r = new FileReader();
+          r.onload = ()=>resolve(r.result);
+          r.readAsDataURL(blob);
+        }, 'image/jpeg', 0.9);
       });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(()=>controller.abort(), 45000); // 45s hard cap per image
+      let res;
+      try{
+        res = await fetch(`${API_BASE}/auto-crop-document`,{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({image: jpegDataUrl}),
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
       if(!res.ok) throw new Error('Server '+res.status);
       const d = await res.json();
       if(d.success && d.detected){
@@ -2429,9 +2451,10 @@ document.getElementById('bulk-smart-crop').addEventListener('click', async ()=>{
       } else {
         // boundary not found — leave image untouched so user can crop manually
         img.status='error'; skipped++;
+        console.warn('Smart crop: no boundary detected for', img.name, d.error);
       }
     }catch(e){
-      console.warn('Smart crop failed:', e);
+      console.warn('Smart crop failed for', img.name, ':', e.name==='AbortError' ? 'timed out (45s)' : e);
       img.status='error'; skipped++;
     }
     renderBulkGrid();
