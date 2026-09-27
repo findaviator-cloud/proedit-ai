@@ -184,30 +184,35 @@ def _four_point_transform(cv2mod, image_bgr, pts):
     return cv2mod.warpPerspective(image_bgr, m, (max_width, max_height))
 
 def _find_document_contour(cv2mod, image_bgr):
-    """Downscale for fast contour search, find the largest plausible 4-point
-    quadrilateral (the document edge), return its corners scaled back to
-    full resolution. Returns None if nothing plausible is found."""
+    """Brightness-mask based detection (Otsu threshold + morphology + convex
+    hull + min-area-rect) — much more robust than pure edge detection against
+    real-world photos: shadows, paper folds/creases, printed text near the
+    edges, and low-contrast backgrounds all break clean 4-point edge contours,
+    but the document is still reliably the largest bright region in the frame."""
     h, w = image_bgr.shape[:2]
-    target_h = 500
+    target_h = 600
     ratio = h / float(target_h) if h > target_h else 1.0
     resized = cv2mod.resize(image_bgr, (max(1, int(w / ratio)), target_h)) if ratio != 1.0 else image_bgr.copy()
 
     gray = cv2mod.cvtColor(resized, cv2mod.COLOR_BGR2GRAY)
-    gray = cv2mod.GaussianBlur(gray, (5, 5), 0)
-    edged = cv2mod.Canny(gray, 50, 150)
-    edged = cv2mod.dilate(edged, None, iterations=1)
-    edged = cv2mod.erode(edged, None, iterations=1)
+    blur = cv2mod.GaussianBlur(gray, (7, 7), 0)
+    _, mask = cv2mod.threshold(blur, 0, 255, cv2mod.THRESH_BINARY + cv2mod.THRESH_OTSU)
+    kernel = np.ones((15, 15), np.uint8)
+    mask = cv2mod.morphologyEx(mask, cv2mod.MORPH_CLOSE, kernel)
+    mask = cv2mod.morphologyEx(mask, cv2mod.MORPH_OPEN, kernel)
 
-    contours, _ = cv2mod.findContours(edged.copy(), cv2mod.RETR_LIST, cv2mod.CHAIN_APPROX_SIMPLE)
-    contours = sorted(contours, key=cv2mod.contourArea, reverse=True)[:5]
+    contours, _ = cv2mod.findContours(mask, cv2mod.RETR_EXTERNAL, cv2mod.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None
+    biggest = max(contours, key=cv2mod.contourArea)
     img_area = resized.shape[0] * resized.shape[1]
+    if cv2mod.contourArea(biggest) < DOC_MIN_AREA_FRAC * img_area:
+        return None
 
-    for c in contours:
-        peri = cv2mod.arcLength(c, True)
-        approx = cv2mod.approxPolyDP(c, 0.02 * peri, True)
-        if len(approx) == 4 and cv2mod.contourArea(approx) > DOC_MIN_AREA_FRAC * img_area:
-            return approx.reshape(4, 2).astype("float32") * ratio
-    return None
+    hull = cv2mod.convexHull(biggest)
+    rect = cv2mod.minAreaRect(hull)
+    box = cv2mod.boxPoints(rect)
+    return (box * ratio).astype("float32")
 
 @app.route("/auto-crop-document", methods=["POST"])
 def auto_crop_document():
