@@ -2403,61 +2403,143 @@ document.getElementById('bulk-rmbg').addEventListener('click',async()=>{
 
 function Path_stem(name){ return name.replace(/\.[^.]+$/,''); }
 
-/* ── bulk Smart Crop (auto document-boundary detect + deskew) ── */
+/* ── OpenCV.js lazy loader (loaded once, on first Smart Crop use) ── */
+let cvReadyPromise = null;
+function ensureOpenCV(){
+  if (cvReadyPromise) return cvReadyPromise;
+  cvReadyPromise = new Promise((resolve, reject)=>{
+    if (window.cv && window.cv.Mat){ resolve(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://docs.opencv.org/4.x/opencv.js';
+    script.async = true;
+    script.onload = ()=>{
+      if (window.cv && window.cv.Mat){ resolve(); return; } // some builds are ready immediately
+      window.cv['onRuntimeInitialized'] = ()=>resolve();
+    };
+    script.onerror = ()=>reject(new Error('Could not load the crop engine (check internet connection)'));
+    document.head.appendChild(script);
+  });
+  return cvReadyPromise;
+}
+
+/* ── Pure math/CV document detection + perspective crop — runs 100%
+   on-device (WebAssembly), no server round-trip, no AI model. ── */
+function cvOrderPoints(pts){
+  const sum = pts.map(p=>p[0]+p[1]);
+  const diff = pts.map(p=>p[1]-p[0]);
+  const tl = pts[sum.indexOf(Math.min(...sum))];
+  const br = pts[sum.indexOf(Math.max(...sum))];
+  const tr = pts[diff.indexOf(Math.min(...diff))];
+  const bl = pts[diff.indexOf(Math.max(...diff))];
+  return [tl,tr,br,bl];
+}
+
+function cvFindAndCropDocument(srcCanvas, minAreaFrac=0.15){
+  const src = cv.imread(srcCanvas);
+  const gray = new cv.Mat();
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+  const targetH = 500;
+  const ratio = src.rows > targetH ? src.rows/targetH : 1;
+  const small = new cv.Mat();
+  if (ratio !== 1){
+    cv.resize(gray, small, new cv.Size(Math.max(1,Math.round(src.cols/ratio)), targetH), 0, 0, cv.INTER_AREA);
+  } else {
+    gray.copyTo(small);
+  }
+
+  const blurred = new cv.Mat();
+  cv.GaussianBlur(small, blurred, new cv.Size(5,5), 0);
+  const edged = new cv.Mat();
+  cv.Canny(blurred, edged, 50, 150);
+  const kernel = cv.Mat.ones(3,3,cv.CV_8U);
+  cv.dilate(edged, edged, kernel);
+  cv.erode(edged, edged, kernel);
+
+  const contours = new cv.MatVector();
+  const hierarchy = new cv.Mat();
+  cv.findContours(edged, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+  const imgArea = small.rows * small.cols;
+  let best = null, bestArea = 0;
+  for (let i=0; i<contours.size(); i++){
+    const c = contours.get(i);
+    const peri = cv.arcLength(c, true);
+    const approx = new cv.Mat();
+    cv.approxPolyDP(c, approx, 0.02*peri, true);
+    if (approx.rows === 4){
+      const area = cv.contourArea(approx);
+      if (area > minAreaFrac*imgArea && area > bestArea){
+        bestArea = area;
+        if (best) best.delete();
+        best = approx;
+      } else approx.delete();
+    } else approx.delete();
+    c.delete();
+  }
+
+  let resultCanvas = null;
+  if (best){
+    const raw = best.data32S; // [x0,y0,x1,y1,x2,y2,x3,y3] at downscaled resolution
+    const pts = [[raw[0]*ratio,raw[1]*ratio],[raw[2]*ratio,raw[3]*ratio],
+                 [raw[4]*ratio,raw[5]*ratio],[raw[6]*ratio,raw[7]*ratio]];
+    const [tl,tr,br,bl] = cvOrderPoints(pts);
+    const maxWidth  = Math.max(Math.round(Math.hypot(br[0]-bl[0],br[1]-bl[1])),
+                                Math.round(Math.hypot(tr[0]-tl[0],tr[1]-tl[1])), 1);
+    const maxHeight = Math.max(Math.round(Math.hypot(tr[0]-br[0],tr[1]-br[1])),
+                                Math.round(Math.hypot(tl[0]-bl[0],tl[1]-bl[1])), 1);
+
+    const srcTri = cv.matFromArray(4,1,cv.CV_32FC2, [tl[0],tl[1], tr[0],tr[1], br[0],br[1], bl[0],bl[1]]);
+    const dstTri = cv.matFromArray(4,1,cv.CV_32FC2, [0,0, maxWidth-1,0, maxWidth-1,maxHeight-1, 0,maxHeight-1]);
+    const M = cv.getPerspectiveTransform(srcTri, dstTri);
+    const warped = new cv.Mat();
+    cv.warpPerspective(src, warped, M, new cv.Size(maxWidth, maxHeight), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
+
+    resultCanvas = document.createElement('canvas');
+    resultCanvas.width = maxWidth; resultCanvas.height = maxHeight;
+    cv.imshow(resultCanvas, warped);
+
+    warped.delete(); M.delete(); srcTri.delete(); dstTri.delete(); best.delete();
+  }
+
+  src.delete(); gray.delete(); small.delete(); blurred.delete();
+  edged.delete(); kernel.delete(); contours.delete(); hierarchy.delete();
+  return resultCanvas; // null if no document boundary found
+}
+
+/* ── bulk Smart Crop — 100% on-device, no upload, no AI ── */
 document.getElementById('bulk-smart-crop').addEventListener('click', async ()=>{
   const targets = getTargets();
   if(!targets.length){ toast('No images selected'); return; }
+
+  bulkStatusTx.textContent = 'Loading crop engine… (first time only)';
+  try{ await ensureOpenCV(); }
+  catch(e){ toast('Could not load crop engine — check internet connection'); bulkStatusTx.textContent=''; return; }
+
   let done=0, skipped=0;
-  bulkStatusTx.textContent='Detecting document edges…';
   for(let idx=0; idx<targets.length; idx++){
     const img = targets[idx];
+    img.status='processing'; renderBulkGrid();
+    bulkStatusTx.textContent = `Cropping… (${idx+1}/${targets.length})`;
     try{
-      img.status='processing'; renderBulkGrid();
-      bulkStatusTx.textContent = `Detecting document edges… (${idx+1}/${targets.length})`;
-
-      // Convert to JPEG synchronously (much smaller payload than PNG for
-      // photos — big speed win on upload). toDataURL is synchronous and
-      // reliable; the earlier toBlob+FileReader chain could silently hang
-      // on some canvases, so we avoid it.
-      const jpegDataUrl = img.origCanvas.toDataURL('image/jpeg', 0.9);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(()=>controller.abort(), 45000); // 45s hard cap per image
-      let res;
-      try{
-        res = await fetch(`${API_BASE}/auto-crop-document`,{
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({image: jpegDataUrl}),
-          signal: controller.signal
-        });
-      } finally {
-        clearTimeout(timeoutId);
-      }
-
-      if(!res.ok) throw new Error('Server '+res.status);
-      const d = await res.json();
-      if(d.success && d.detected){
-        const bytes = Uint8Array.from(atob(d.image.split(',')[1]), c=>c.charCodeAt(0));
-        const bmp = await createImageBitmap(new Blob([bytes],{type:'image/png'}));
-        const c = document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height;
-        c.getContext('2d').drawImage(bmp,0,0);
-        img.origCanvas = c;
-        img.canvas = applyTransformToCanvas(c, img.rotation, img.flipX, img.flipY, img.filter);
+      const cropped = cvFindAndCropDocument(img.origCanvas);
+      if (cropped){
+        img.origCanvas = cropped;
+        img.canvas = applyTransformToCanvas(cropped, img.rotation, img.flipX, img.flipY, img.filter);
         img.status='done'; done++;
       } else {
-        // boundary not found — leave image untouched so user can crop manually
         img.status='error'; skipped++;
-        console.warn('Smart crop: no boundary detected for', img.name, d.error);
       }
     }catch(e){
-      console.warn('Smart crop failed for', img.name, ':', e.name==='AbortError' ? 'timed out (45s)' : e);
+      console.warn('Smart crop failed for', img.name, ':', e);
       img.status='error'; skipped++;
     }
     renderBulkGrid();
     bulkProgBar.style.width = Math.round((done+skipped)/targets.length*100)+'%';
+    await new Promise(r=>setTimeout(r,0)); // yield so the UI stays responsive on big batches
   }
   bulkStatusTx.textContent = `Smart Crop: ${done} cropped, ${skipped} need manual crop`;
-  toast(skipped ? `${done} auto-cropped · ${skipped} need manual crop` : `All ${done} images auto-cropped ✅`);
+  toast(skipped ? `${done} auto-cropped · ${skipped} need manual crop` : `All ${done} images auto-cropped ✅ (on-device)`);
   setTimeout(()=>bulkProgBar.style.width='0%', 2000);
 });
 
