@@ -2415,15 +2415,11 @@ document.getElementById('bulk-smart-crop').addEventListener('click', async ()=>{
       img.status='processing'; renderBulkGrid();
       bulkStatusTx.textContent = `Detecting document edges… (${idx+1}/${targets.length})`;
 
-      // Send as JPEG (not PNG) to cut payload size drastically for large phone
-      // photos — big speed win on upload, negligible quality loss for detection.
-      const jpegDataUrl = await new Promise(resolve=>{
-        img.origCanvas.toBlob(blob=>{
-          const r = new FileReader();
-          r.onload = ()=>resolve(r.result);
-          r.readAsDataURL(blob);
-        }, 'image/jpeg', 0.9);
-      });
+      // Convert to JPEG synchronously (much smaller payload than PNG for
+      // photos — big speed win on upload). toDataURL is synchronous and
+      // reliable; the earlier toBlob+FileReader chain could silently hang
+      // on some canvases, so we avoid it.
+      const jpegDataUrl = img.origCanvas.toDataURL('image/jpeg', 0.9);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(()=>controller.abort(), 45000); // 45s hard cap per image
