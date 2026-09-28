@@ -2450,7 +2450,7 @@ function cvBoxPoints(rotRect){
   ]);
 }
 
-function cvFindAndCropDocument(srcCanvas, minAreaFrac=0.15){
+function cvFindAndCropDocument(srcCanvas, minAreaFrac=0.08){
   const src = cv.imread(srcCanvas);
   const gray = new cv.Mat();
   cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);

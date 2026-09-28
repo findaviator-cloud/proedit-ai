@@ -157,7 +157,7 @@ def load_input_image(mode="RGB"):
     return decode_image(data["image"]).convert(mode), data
 
 # ── Smart document auto-crop (edge detection + perspective correction) ──────
-DOC_MIN_AREA_FRAC = float(os.environ.get("DOC_MIN_AREA_FRAC", 0.15))
+DOC_MIN_AREA_FRAC = float(os.environ.get("DOC_MIN_AREA_FRAC", 0.08))
 
 def _order_points(pts):
     rect = np.zeros((4, 2), dtype="float32")
