@@ -183,16 +183,23 @@ def _four_point_transform(cv2mod, image_bgr, pts):
     m = cv2mod.getPerspectiveTransform(rect, dst)
     return cv2mod.warpPerspective(image_bgr, m, (max_width, max_height))
 
-def _find_document_contour(cv2mod, image_bgr):
+def _find_document_contour_brightness(cv2mod, image_bgr):
     """Brightness-mask based detection (Otsu threshold + morphology + convex
     hull + min-area-rect) — much more robust than pure edge detection against
     real-world photos: shadows, paper folds/creases, printed text near the
     edges, and low-contrast backgrounds all break clean 4-point edge contours,
-    but the document is still reliably the largest bright region in the frame."""
+    but the document is still reliably the largest bright region in the frame.
+
+    Safety check: if the detected region touches 3+ of the 4 frame edges,
+    we've very likely captured "everything bright" (e.g. a page sitting on
+    top of a stack of similarly-toned pages, with almost no true background)
+    rather than one distinct, boundable document — in that case we bail out
+    rather than return a barely-cropped, falsely-confident result."""
     h, w = image_bgr.shape[:2]
     target_h = 600
     ratio = h / float(target_h) if h > target_h else 1.0
     resized = cv2mod.resize(image_bgr, (max(1, int(w / ratio)), target_h)) if ratio != 1.0 else image_bgr.copy()
+    rh, rw = resized.shape[:2]
 
     gray = cv2mod.cvtColor(resized, cv2mod.COLOR_BGR2GRAY)
     blur = cv2mod.GaussianBlur(gray, (7, 7), 0)
@@ -205,14 +212,74 @@ def _find_document_contour(cv2mod, image_bgr):
     if not contours:
         return None
     biggest = max(contours, key=cv2mod.contourArea)
-    img_area = resized.shape[0] * resized.shape[1]
+    img_area = rh * rw
     if cv2mod.contourArea(biggest) < DOC_MIN_AREA_FRAC * img_area:
+        return None
+
+    x, y, bw, bh = cv2mod.boundingRect(biggest)
+    margin = 0.03
+    mx, my = rw * margin, rh * margin
+    edges_touched = sum([
+        x <= mx, y <= my, (x + bw) >= (rw - mx), (y + bh) >= (rh - my)
+    ])
+    if edges_touched >= 3:
         return None
 
     hull = cv2mod.convexHull(biggest)
     rect = cv2mod.minAreaRect(hull)
     box = cv2mod.boxPoints(rect)
     return (box * ratio).astype("float32")
+
+def _find_document_contour_edges(cv2mod, image_bgr, min_area_frac=0.015, max_area_frac=0.5):
+    """Sensitive-Canny edge-based fallback for when the brightness method
+    fails — specifically helps the case of a small, distinct document (a
+    receipt, ID card) sitting on a much larger page/surface of nearly the
+    SAME brightness, where there's no brightness contrast to exploit but the
+    small object's printed border / drop-shadow is still a real edge."""
+    h, w = image_bgr.shape[:2]
+    target_h = 800
+    ratio = h / float(target_h) if h > target_h else 1.0
+    resized = cv2mod.resize(image_bgr, (max(1, int(w / ratio)), target_h)) if ratio != 1.0 else image_bgr.copy()
+    rh, rw = resized.shape[:2]
+
+    gray = cv2mod.cvtColor(resized, cv2mod.COLOR_BGR2GRAY)
+    blur = cv2mod.GaussianBlur(gray, (3, 3), 0)
+    edged = cv2mod.Canny(blur, 15, 60)
+    edged = cv2mod.dilate(edged, np.ones((5, 5), np.uint8), iterations=2)
+    edged = cv2mod.morphologyEx(edged, cv2mod.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+
+    contours, _ = cv2mod.findContours(edged, cv2mod.RETR_EXTERNAL, cv2mod.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None
+    img_area = rh * rw
+    candidates = [c for c in contours if min_area_frac * img_area <= cv2mod.contourArea(c) <= max_area_frac * img_area]
+    if not candidates:
+        return None
+    biggest = max(candidates, key=cv2mod.contourArea)
+
+    x, y, bw, bh = cv2mod.boundingRect(biggest)
+    margin = 0.02
+    mx, my = rw * margin, rh * margin
+    edges_touched = sum([
+        x <= mx, y <= my, (x + bw) >= (rw - mx), (y + bh) >= (rh - my)
+    ])
+    if edges_touched >= 3:
+        return None
+
+    hull = cv2mod.convexHull(biggest)
+    rect = cv2mod.minAreaRect(hull)
+    box = cv2mod.boxPoints(rect)
+    return (box * ratio).astype("float32")
+
+def _find_document_contour(cv2mod, image_bgr):
+    """Try the brightness method first (handles the common case: document on
+    a differently-toned surface). If that finds nothing confident, fall back
+    to edge detection (handles: small document on a similarly-bright larger
+    page/surface, where there's no brightness contrast but a real edge)."""
+    box = _find_document_contour_brightness(cv2mod, image_bgr)
+    if box is not None:
+        return box
+    return _find_document_contour_edges(cv2mod, image_bgr)
 
 @app.route("/auto-crop-document", methods=["POST"])
 def auto_crop_document():

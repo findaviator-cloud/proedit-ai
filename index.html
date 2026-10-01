@@ -2450,19 +2450,38 @@ function cvBoxPoints(rotRect){
   ]);
 }
 
-function cvFindAndCropDocument(srcCanvas, minAreaFrac=0.08){
-  const src = cv.imread(srcCanvas);
+/* Shared: given 4 full-resolution corner points, perspective-crop src Mat
+   into a new canvas. Does not delete src. */
+function cvWarpFromPoints(src, pts){
+  const [tl,tr,br,bl] = cvOrderPoints(pts);
+  const maxWidth  = Math.max(Math.round(Math.hypot(br[0]-bl[0],br[1]-bl[1])),
+                              Math.round(Math.hypot(tr[0]-tl[0],tr[1]-tl[1])), 1);
+  const maxHeight = Math.max(Math.round(Math.hypot(tr[0]-br[0],tr[1]-br[1])),
+                              Math.round(Math.hypot(tl[0]-bl[0],tl[1]-bl[1])), 1);
+  const srcTri = cv.matFromArray(4,1,cv.CV_32FC2, [tl[0],tl[1], tr[0],tr[1], br[0],br[1], bl[0],bl[1]]);
+  const dstTri = cv.matFromArray(4,1,cv.CV_32FC2, [0,0, maxWidth-1,0, maxWidth-1,maxHeight-1, 0,maxHeight-1]);
+  const M = cv.getPerspectiveTransform(srcTri, dstTri);
+  const warped = new cv.Mat();
+  cv.warpPerspective(src, warped, M, new cv.Size(maxWidth, maxHeight), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
+  const resultCanvas = document.createElement('canvas');
+  resultCanvas.width = maxWidth; resultCanvas.height = maxHeight;
+  cv.imshow(resultCanvas, warped);
+  warped.delete(); M.delete(); srcTri.delete(); dstTri.delete();
+  return resultCanvas;
+}
+
+/* Brightness-mask method: handles the common case (document on a
+   differently-toned surface). Rejects results touching 3+ frame edges
+   (likely "whole frame", e.g. a page atop a stack of similar pages). */
+function cvFindAndCropDocumentBrightness(src, minAreaFrac=0.08){
   const gray = new cv.Mat();
   cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-
   const targetH = 600;
   const ratio = src.rows > targetH ? src.rows/targetH : 1;
   const small = new cv.Mat();
   if (ratio !== 1){
     cv.resize(gray, small, new cv.Size(Math.max(1,Math.round(src.cols/ratio)), targetH), 0, 0, cv.INTER_AREA);
-  } else {
-    gray.copyTo(small);
-  }
+  } else { gray.copyTo(small); }
 
   const blurred = new cv.Mat();
   cv.GaussianBlur(small, blurred, new cv.Size(7,7), 0);
@@ -2481,42 +2500,105 @@ function cvFindAndCropDocument(srcCanvas, minAreaFrac=0.08){
   for (let i=0; i<contours.size(); i++){
     const c = contours.get(i);
     const area = cv.contourArea(c);
-    if (area > bestArea){
-      bestArea = area;
-      if (biggest) biggest.delete();
-      biggest = c;
-    } else c.delete();
+    if (area > bestArea){ bestArea = area; if (biggest) biggest.delete(); biggest = c; }
+    else c.delete();
   }
 
   let resultCanvas = null;
   if (biggest && bestArea > minAreaFrac*imgArea){
-    const hull = new cv.Mat();
-    cv.convexHull(biggest, hull);
-    const rotRect = cv.minAreaRect(hull);
-    const pts = cvBoxPoints(rotRect).map(([x,y])=>[x*ratio, y*ratio]);
-    const [tl,tr,br,bl] = cvOrderPoints(pts);
-    const maxWidth  = Math.max(Math.round(Math.hypot(br[0]-bl[0],br[1]-bl[1])),
-                                Math.round(Math.hypot(tr[0]-tl[0],tr[1]-tl[1])), 1);
-    const maxHeight = Math.max(Math.round(Math.hypot(tr[0]-br[0],tr[1]-br[1])),
-                                Math.round(Math.hypot(tl[0]-bl[0],tl[1]-bl[1])), 1);
+    const br0 = cv.boundingRect(biggest);
+    const margin = 0.03;
+    const mx = small.cols*margin, my = small.rows*margin;
+    const edgesTouched = [
+      br0.x <= mx, br0.y <= my,
+      (br0.x+br0.width) >= (small.cols-mx), (br0.y+br0.height) >= (small.rows-my)
+    ].filter(Boolean).length;
 
-    const srcTri = cv.matFromArray(4,1,cv.CV_32FC2, [tl[0],tl[1], tr[0],tr[1], br[0],br[1], bl[0],bl[1]]);
-    const dstTri = cv.matFromArray(4,1,cv.CV_32FC2, [0,0, maxWidth-1,0, maxWidth-1,maxHeight-1, 0,maxHeight-1]);
-    const M = cv.getPerspectiveTransform(srcTri, dstTri);
-    const warped = new cv.Mat();
-    cv.warpPerspective(src, warped, M, new cv.Size(maxWidth, maxHeight), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
-
-    resultCanvas = document.createElement('canvas');
-    resultCanvas.width = maxWidth; resultCanvas.height = maxHeight;
-    cv.imshow(resultCanvas, warped);
-
-    warped.delete(); M.delete(); srcTri.delete(); dstTri.delete(); hull.delete();
+    if (edgesTouched < 3){
+      const hull = new cv.Mat();
+      cv.convexHull(biggest, hull);
+      const rotRect = cv.minAreaRect(hull);
+      const pts = cvBoxPoints(rotRect).map(([x,y])=>[x*ratio, y*ratio]);
+      resultCanvas = cvWarpFromPoints(src, pts);
+      hull.delete();
+    }
   }
   if (biggest) biggest.delete();
-
-  src.delete(); gray.delete(); small.delete(); blurred.delete();
+  gray.delete(); small.delete(); blurred.delete();
   mask.delete(); kernel.delete(); contours.delete(); hierarchy.delete();
-  return resultCanvas; // null if no document boundary found
+  return resultCanvas;
+}
+
+/* Sensitive-Canny edge fallback: for a small, distinct document (receipt,
+   ID card) on a much larger page/surface of nearly the SAME brightness —
+   no brightness contrast to exploit, but the small object's printed
+   border / drop-shadow is still a real edge. */
+function cvFindAndCropDocumentEdges(src, minAreaFrac=0.015, maxAreaFrac=0.5){
+  const gray = new cv.Mat();
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+  const targetH = 800;
+  const ratio = src.rows > targetH ? src.rows/targetH : 1;
+  const small = new cv.Mat();
+  if (ratio !== 1){
+    cv.resize(gray, small, new cv.Size(Math.max(1,Math.round(src.cols/ratio)), targetH), 0, 0, cv.INTER_AREA);
+  } else { gray.copyTo(small); }
+
+  const blurred = new cv.Mat();
+  cv.GaussianBlur(small, blurred, new cv.Size(3,3), 0);
+  const edged = new cv.Mat();
+  cv.Canny(blurred, edged, 15, 60);
+  const kernel5 = cv.Mat.ones(5,5,cv.CV_8U);
+  cv.dilate(edged, edged, kernel5, new cv.Point(-1,-1), 2);
+  const kernel9 = cv.Mat.ones(9,9,cv.CV_8U);
+  cv.morphologyEx(edged, edged, cv.MORPH_CLOSE, kernel9);
+
+  const contours = new cv.MatVector();
+  const hierarchy = new cv.Mat();
+  cv.findContours(edged, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+  const imgArea = small.rows * small.cols;
+  let biggest = null, bestArea = 0;
+  for (let i=0; i<contours.size(); i++){
+    const c = contours.get(i);
+    const area = cv.contourArea(c);
+    if (area >= minAreaFrac*imgArea && area <= maxAreaFrac*imgArea && area > bestArea){
+      bestArea = area; if (biggest) biggest.delete(); biggest = c;
+    } else c.delete();
+  }
+
+  let resultCanvas = null;
+  if (biggest){
+    const br0 = cv.boundingRect(biggest);
+    const margin = 0.02;
+    const mx = small.cols*margin, my = small.rows*margin;
+    const edgesTouched = [
+      br0.x <= mx, br0.y <= my,
+      (br0.x+br0.width) >= (small.cols-mx), (br0.y+br0.height) >= (small.rows-my)
+    ].filter(Boolean).length;
+
+    if (edgesTouched < 3){
+      const hull = new cv.Mat();
+      cv.convexHull(biggest, hull);
+      const rotRect = cv.minAreaRect(hull);
+      const pts = cvBoxPoints(rotRect).map(([x,y])=>[x*ratio, y*ratio]);
+      resultCanvas = cvWarpFromPoints(src, pts);
+      hull.delete();
+    }
+    biggest.delete();
+  }
+  gray.delete(); small.delete(); blurred.delete(); edged.delete();
+  kernel5.delete(); kernel9.delete(); contours.delete(); hierarchy.delete();
+  return resultCanvas;
+}
+
+/* Try brightness method first (common case); fall back to edge detection
+   (small document on similarly-bright larger page/surface). */
+function cvFindAndCropDocument(srcCanvas){
+  const src = cv.imread(srcCanvas);
+  let result = cvFindAndCropDocumentBrightness(src);
+  if (!result) result = cvFindAndCropDocumentEdges(src);
+  src.delete();
+  return result; // null if neither method found a confident boundary
 }
 
 /* ── bulk Smart Crop — 100% on-device, no upload, no AI ── */
