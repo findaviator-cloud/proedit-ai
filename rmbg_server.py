@@ -183,18 +183,29 @@ def _four_point_transform(cv2mod, image_bgr, pts):
     m = cv2mod.getPerspectiveTransform(rect, dst)
     return cv2mod.warpPerspective(image_bgr, m, (max_width, max_height))
 
-def _find_document_contour_brightness(cv2mod, image_bgr):
+def _find_document_contour_brightness(cv2mod, image_bgr, invert, min_area_frac,
+                                       max_area_frac=0.98, min_rectangularity=0.55):
     """Brightness-mask based detection (Otsu threshold + morphology + convex
     hull + min-area-rect) — much more robust than pure edge detection against
     real-world photos: shadows, paper folds/creases, printed text near the
     edges, and low-contrast backgrounds all break clean 4-point edge contours,
-    but the document is still reliably the largest bright region in the frame.
+    but the document is still reliably the largest bright (or, if invert=True,
+    darkest — e.g. a dark phone screen on a light cloth) region in the frame.
 
-    Safety check: if the detected region touches 3+ of the 4 frame edges,
-    we've very likely captured "everything bright" (e.g. a page sitting on
-    top of a stack of similarly-toned pages, with almost no true background)
-    rather than one distinct, boundable document — in that case we bail out
-    rather than return a barely-cropped, falsely-confident result."""
+    Returns (box, area_frac, rectangularity) or None.
+
+    Safety checks:
+    - rectangularity (contour area / its min-area-rect area) must be
+      reasonably high — a true document/phone is close to its own bounding
+      rectangle; a spurious sliver of background (wood grain, a shadow) is
+      usually far from rectangular and gets filtered out here.
+    - if the region touches all 4 frame edges AND isn't a very clean
+      rectangle (rectangularity >= 0.90), we've likely captured "everything"
+      (e.g. a page atop a stack of similarly-toned pages, no true background)
+      rather than one distinct object — bail out rather than return a
+      barely-cropped, falsely-confident result. A genuine large object
+      (phone filling the frame) IS allowed through when it's a clean enough
+      rectangle even if it touches every edge."""
     h, w = image_bgr.shape[:2]
     target_h = 600
     ratio = h / float(target_h) if h > target_h else 1.0
@@ -203,7 +214,8 @@ def _find_document_contour_brightness(cv2mod, image_bgr):
 
     gray = cv2mod.cvtColor(resized, cv2mod.COLOR_BGR2GRAY)
     blur = cv2mod.GaussianBlur(gray, (7, 7), 0)
-    _, mask = cv2mod.threshold(blur, 0, 255, cv2mod.THRESH_BINARY + cv2mod.THRESH_OTSU)
+    thresh_type = cv2mod.THRESH_BINARY_INV if invert else cv2mod.THRESH_BINARY
+    _, mask = cv2mod.threshold(blur, 0, 255, thresh_type + cv2mod.THRESH_OTSU)
     kernel = np.ones((15, 15), np.uint8)
     mask = cv2mod.morphologyEx(mask, cv2mod.MORPH_CLOSE, kernel)
     mask = cv2mod.morphologyEx(mask, cv2mod.MORPH_OPEN, kernel)
@@ -213,7 +225,14 @@ def _find_document_contour_brightness(cv2mod, image_bgr):
         return None
     biggest = max(contours, key=cv2mod.contourArea)
     img_area = rh * rw
-    if cv2mod.contourArea(biggest) < DOC_MIN_AREA_FRAC * img_area:
+    area_frac = cv2mod.contourArea(biggest) / img_area
+    if area_frac < min_area_frac or area_frac > max_area_frac:
+        return None
+
+    rect = cv2mod.minAreaRect(biggest)
+    rect_area = rect[1][0] * rect[1][1]
+    rectangularity = cv2mod.contourArea(biggest) / max(rect_area, 1)
+    if rectangularity < min_rectangularity:
         return None
 
     x, y, bw, bh = cv2mod.boundingRect(biggest)
@@ -222,13 +241,13 @@ def _find_document_contour_brightness(cv2mod, image_bgr):
     edges_touched = sum([
         x <= mx, y <= my, (x + bw) >= (rw - mx), (y + bh) >= (rh - my)
     ])
-    if edges_touched >= 3:
+    if edges_touched == 4 and rectangularity < 0.90:
         return None
 
     hull = cv2mod.convexHull(biggest)
-    rect = cv2mod.minAreaRect(hull)
-    box = cv2mod.boxPoints(rect)
-    return (box * ratio).astype("float32")
+    rect2 = cv2mod.minAreaRect(hull)
+    box = cv2mod.boxPoints(rect2)
+    return (box * ratio).astype("float32"), area_frac, rectangularity
 
 def _find_document_contour_edges(cv2mod, image_bgr, min_area_frac=0.015, max_area_frac=0.5):
     """Sensitive-Canny edge-based fallback for when the brightness method
@@ -263,7 +282,7 @@ def _find_document_contour_edges(cv2mod, image_bgr, min_area_frac=0.015, max_are
     edges_touched = sum([
         x <= mx, y <= my, (x + bw) >= (rw - mx), (y + bh) >= (rh - my)
     ])
-    if edges_touched >= 3:
+    if edges_touched == 4:
         return None
 
     hull = cv2mod.convexHull(biggest)
@@ -272,12 +291,24 @@ def _find_document_contour_edges(cv2mod, image_bgr, min_area_frac=0.015, max_are
     return (box * ratio).astype("float32")
 
 def _find_document_contour(cv2mod, image_bgr):
-    """Try the brightness method first (handles the common case: document on
-    a differently-toned surface). If that finds nothing confident, fall back
-    to edge detection (handles: small document on a similarly-bright larger
-    page/surface, where there's no brightness contrast but a real edge)."""
-    box = _find_document_contour_brightness(cv2mod, image_bgr)
-    if box is not None:
+    """Try brightness detection in both polarities — document brighter than
+    its surroundings (the common case: paper on a table) AND document darker
+    than its surroundings (e.g. a dark phone screen on light cloth) — and
+    keep whichever candidate scores highest on (area * rectangularity), i.e.
+    the largest, cleanest rectangle. The inverted polarity requires a much
+    larger minimum area (0.30 vs 0.08) since small dark regions (shadows,
+    wood grain) are far more likely to be false positives than small bright
+    ones. If neither brightness polarity finds anything confident, fall back
+    to edge detection (small document on a similarly-bright larger surface)."""
+    candidates = []
+    c = _find_document_contour_brightness(cv2mod, image_bgr, invert=False, min_area_frac=DOC_MIN_AREA_FRAC)
+    if c is not None:
+        candidates.append(c)
+    c = _find_document_contour_brightness(cv2mod, image_bgr, invert=True, min_area_frac=0.30)
+    if c is not None:
+        candidates.append(c)
+    if candidates:
+        box, _, _ = max(candidates, key=lambda c: c[1] * c[2])
         return box
     return _find_document_contour_edges(cv2mod, image_bgr)
 
