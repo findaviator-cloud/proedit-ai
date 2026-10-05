@@ -2532,7 +2532,7 @@ function cvFindAndCropDocumentBrightness(src, invert, minAreaFrac, maxAreaFrac=0
         (br0.x+br0.width) >= (small.cols-mx), (br0.y+br0.height) >= (small.rows-my)
       ].filter(Boolean).length;
 
-      if (!(edgesTouched === 4 && rectangularity < 0.90)){
+      if (edgesTouched < 4){
         const hull = new cv.Mat();
         cv.convexHull(biggest, hull);
         const rotRect = cv.minAreaRect(hull);
@@ -2553,7 +2553,7 @@ function cvFindAndCropDocumentBrightness(src, invert, minAreaFrac, maxAreaFrac=0
    ID card) on a much larger page/surface of nearly the SAME brightness —
    no brightness contrast to exploit, but the small object's printed
    border / drop-shadow is still a real edge. */
-function cvFindAndCropDocumentEdges(src, minAreaFrac=0.015, maxAreaFrac=0.5){
+function cvFindAndCropDocumentEdges(src, minAreaFrac=0.015, maxAreaFrac=0.5, minRectangularity=0.5, minAspect=0.15){
   const gray = new cv.Mat();
   cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
   const targetH = 800;
@@ -2577,34 +2577,46 @@ function cvFindAndCropDocumentEdges(src, minAreaFrac=0.015, maxAreaFrac=0.5){
   cv.findContours(edged, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
   const imgArea = small.rows * small.cols;
-  let biggest = null, bestArea = 0;
+  const margin = 0.02;
+  const mx = small.cols*margin, my = small.rows*margin;
+  // Collect candidates in [minAreaFrac,maxAreaFrac], largest first — Canny
+  // edges are noisier than a brightness mask, so a stray strip of texture
+  // can be "biggest" without being the real document; try each until one
+  // passes rectangularity/aspect/edge-touch sanity checks.
+  const cands = [];
   for (let i=0; i<contours.size(); i++){
     const c = contours.get(i);
     const area = cv.contourArea(c);
-    if (area >= minAreaFrac*imgArea && area <= maxAreaFrac*imgArea && area > bestArea){
-      bestArea = area; if (biggest) biggest.delete(); biggest = c;
-    } else c.delete();
+    if (area >= minAreaFrac*imgArea && area <= maxAreaFrac*imgArea) cands.push(c);
+    else c.delete();
   }
+  cands.sort((a,b)=> cv.contourArea(b) - cv.contourArea(a));
 
   let resultCanvas = null;
-  if (biggest){
-    const br0 = cv.boundingRect(biggest);
-    const margin = 0.02;
-    const mx = small.cols*margin, my = small.rows*margin;
-    const edgesTouched = [
-      br0.x <= mx, br0.y <= my,
-      (br0.x+br0.width) >= (small.cols-mx), (br0.y+br0.height) >= (small.rows-my)
-    ].filter(Boolean).length;
-
-    if (edgesTouched < 4){
-      const hull = new cv.Mat();
-      cv.convexHull(biggest, hull);
-      const rotRect = cv.minAreaRect(hull);
-      const pts = cvBoxPoints(rotRect).map(([x,y])=>[x*ratio, y*ratio]);
-      resultCanvas = cvWarpFromPoints(src, pts);
-      hull.delete();
+  for (const c of cands){
+    if (!resultCanvas){
+      const rotRectFull = cv.minAreaRect(c);
+      const rw_ = rotRectFull.size.width, rh_ = rotRectFull.size.height;
+      const rectArea = rw_*rh_;
+      const rectangularity = rectArea>0 ? cv.contourArea(c)/rectArea : 0;
+      const aspect = rectArea>0 ? Math.min(rw_,rh_)/Math.max(rw_,rh_) : 0;
+      if (rectangularity >= minRectangularity && aspect >= minAspect){
+        const br0 = cv.boundingRect(c);
+        const edgesTouched = [
+          br0.x <= mx, br0.y <= my,
+          (br0.x+br0.width) >= (small.cols-mx), (br0.y+br0.height) >= (small.rows-my)
+        ].filter(Boolean).length;
+        if (edgesTouched < 4){
+          const hull = new cv.Mat();
+          cv.convexHull(c, hull);
+          const rotRect = cv.minAreaRect(hull);
+          const pts = cvBoxPoints(rotRect).map(([x,y])=>[x*ratio, y*ratio]);
+          resultCanvas = cvWarpFromPoints(src, pts);
+          hull.delete();
+        }
+      }
     }
-    biggest.delete();
+    c.delete();
   }
   gray.delete(); small.delete(); blurred.delete(); edged.delete();
   kernel5.delete(); kernel9.delete(); contours.delete(); hierarchy.delete();
